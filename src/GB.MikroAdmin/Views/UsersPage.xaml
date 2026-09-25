@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="GB.MikroAdmin.Views.UsersPage"
+             Title="Usuarios">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="12">
+            <Button Text="Actualizar usuarios" Command="{Binding RefreshCommand}" />
+            <Label Text="Crear usuarios" FontAttributes="Bold" FontSize="20" />
+            <Entry Placeholder="Cantidad (1 a 100)" Keyboard="Numeric" Text="{Binding BatchQuantity}" />
+            <Picker Title="Perfil para todos los usuarios" ItemsSource="{Binding Profiles}" ItemDisplayBinding="{Binding Name}" SelectedItem="{Binding SelectedProfile}" />
+            <Label Text="La duración se toma del plan seleccionado. Cada voucher usa el mismo código como usuario y contraseña." FontSize="12" TextColor="Gray" />
+            <Button Text="Crear usuarios" Command="{Binding AddBatchCommand}" />
+            <CollectionView ItemsSource="{Binding GeneratedCredentials}" HeightRequest="100">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate><Label Text="{Binding .}" FontFamily="Consolas" /></DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Label Text="Usuarios existentes" FontAttributes="Bold" FontSize="20" />
+            <CollectionView ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser}" SelectionMode="Single" HeightRequest="220">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="6" ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
+                            <Label Text="{Binding Name}" />
+                            <Label Grid.Column="1" Text="{Binding Profile}" />
+                            <VerticalStackLayout Grid.Column="2">
+                                <Label Text="{Binding Uptime, StringFormat='Usado: {0:g}'}" />
+                                <Label Text="{Binding Remaining, StringFormat='Restante: {0:g}'}" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+            <Button Text="Eliminar usuario seleccionado" Command="{Binding RemoveUserCommand}" BackgroundColor="IndianRed" />
+            <Label Text="{Binding Message}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

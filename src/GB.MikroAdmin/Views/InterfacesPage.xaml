@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="GB.MikroAdmin.Views.InterfacesPage"
+             Title="Interfaces">
+    <VerticalStackLayout Padding="20" Spacing="12">
+        <Button Text="Actualizar interfaces" Command="{Binding RefreshCommand}" />
+        <CollectionView ItemsSource="{Binding Interfaces}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid Padding="8" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                        <Label Text="{Binding Name}" FontAttributes="Bold" />
+                        <Label Grid.Column="1" Text="{Binding Type}" />
+                        <Label Grid.Column="2" Text="{Binding Running}" TextColor="Green" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+        <Label Text="{Binding Message}" />
+    </VerticalStackLayout>
+</ContentPage>

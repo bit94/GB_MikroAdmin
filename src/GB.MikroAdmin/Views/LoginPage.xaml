@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui" xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" x:Class="GB.MikroAdmin.Views.LoginPage" Title="Conectar MikroTik">
+ <ScrollView><VerticalStackLayout Padding="24" Spacing="12">
+  <Label Text="MikroAdmin" FontSize="30" FontAttributes="Bold"/><Label Text="API segura de RouterOS" TextColor="Gray"/>
+  <Entry Placeholder="IP o DNS" Text="{Binding Host}"/><Entry Placeholder="Puerto API-SSL (8729)" Keyboard="Numeric" Text="{Binding Port}"/>
+  <Entry Placeholder="Usuario" Text="{Binding UserName}"/><Entry Placeholder="Contraseña" IsPassword="True" Text="{Binding Password}"/>
+  <HorizontalStackLayout><Switch IsToggled="{Binding UseTls}"/><Label Text="Usar TLS / API-SSL" VerticalOptions="Center"/></HorizontalStackLayout>
+  <HorizontalStackLayout><Switch IsToggled="{Binding Simulated}"/><Label Text="Modo simulado (sin router)" VerticalOptions="Center"/></HorizontalStackLayout>
+  <Button Text="Conectar" Command="{Binding ConnectCommand}"/><Label Text="{Binding Message}" TextColor="Crimson"/>
+  <Label Text="Las credenciales se guardan con SecureStorage. En modo real se requiere api-ssl, certificado válido y puerto 8729." FontSize="12" TextColor="Gray"/>
+ </VerticalStackLayout></ScrollView>
+</ContentPage>

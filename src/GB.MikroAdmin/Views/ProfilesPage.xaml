@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="GB.MikroAdmin.Views.ProfilesPage"
+             Title="Perfiles">
+    <VerticalStackLayout Padding="20" Spacing="12">
+        <Button Text="Actualizar perfiles" Command="{Binding RefreshCommand}" />
+        <Label Text="Crear perfil Hotspot" FontAttributes="Bold" FontSize="20" />
+        <Entry Placeholder="Nombre del perfil" Text="{Binding NewProfileName}" />
+        <Entry Placeholder="Límite, por ejemplo 2M/2M" Text="{Binding RateLimit}" />
+        <Entry Placeholder="Duración DD:HH:MM, ej. 01:02:30" Keyboard="Numeric" Text="{Binding VoucherDuration}" />
+        <Button Text="Agregar perfil" Command="{Binding AddProfileCommand}" />
+        <Label Text="Perfiles disponibles" FontAttributes="Bold" FontSize="20" />
+        <CollectionView ItemsSource="{Binding Profiles}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid Padding="8" ColumnDefinitions="*,Auto">
+                        <Label Text="{Binding Name}" FontAttributes="Bold" />
+                        <VerticalStackLayout Grid.Column="1">
+                            <Label Text="{Binding RateLimit}" />
+                            <Label Text="{Binding VoucherDuration, StringFormat='Duración: {0:g}'}" FontSize="12" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+        <Label Text="{Binding Message}" />
+    </VerticalStackLayout>
+</ContentPage>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui" xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" x:Class="GB.MikroAdmin.Views.DashboardPage" Title="Router">
+ <ScrollView><VerticalStackLayout Padding="20" Spacing="12">
+  <Button Text="Actualizar interfaces, perfiles y usuarios" Command="{Binding RefreshCommand}"/>
+  <Label Text="Interfaces" FontAttributes="Bold" FontSize="20"/>
+  <CollectionView ItemsSource="{Binding Interfaces}" HeightRequest="130"><CollectionView.ItemTemplate><DataTemplate><Grid ColumnDefinitions="*,Auto,Auto"><Label Text="{Binding Name}"/><Label Grid.Column="1" Text="{Binding Type}"/><Label Grid.Column="2" Text="{Binding Running}" TextColor="Green"/></Grid></DataTemplate></CollectionView.ItemTemplate></CollectionView>
+  <Label Text="Perfiles Hotspot" FontAttributes="Bold" FontSize="20"/>
+  <CollectionView ItemsSource="{Binding Profiles}" HeightRequest="90"><CollectionView.ItemTemplate><DataTemplate><Grid ColumnDefinitions="*,Auto"><Label Text="{Binding Name}"/><Label Grid.Column="1" Text="{Binding RateLimit}"/></Grid></DataTemplate></CollectionView.ItemTemplate></CollectionView>
+  <Grid ColumnDefinitions="*,*"><Entry Placeholder="Nuevo perfil" Text="{Binding NewProfileName}"/><Entry Grid.Column="1" Placeholder="Límite, ej. 2M/2M" Text="{Binding RateLimit}"/></Grid><Button Text="Agregar perfil" Command="{Binding AddProfileCommand}"/>
+  <Label Text="Crear un usuario" FontAttributes="Bold" FontSize="20"/>
+  <Entry Placeholder="Usuario" Text="{Binding NewName}"/><Entry Placeholder="Contraseña numérica (máximo 6)" Keyboard="Numeric" IsPassword="True" Text="{Binding NewPassword}"/>
+  <Picker Title="Perfil" ItemsSource="{Binding Profiles}" ItemDisplayBinding="{Binding Name}" SelectedItem="{Binding SelectedProfile}"/>
+  <Entry Placeholder="Horas de acceso" Keyboard="Numeric" Text="{Binding Hours}"/><Button Text="Crear usuario" Command="{Binding AddUserCommand}"/>
+  <Label Text="Crear usuarios por lote" FontAttributes="Bold" FontSize="20"/>
+  <Grid ColumnDefinitions="*,Auto"><Entry Placeholder="Prefijo (ej. cliente)" Text="{Binding BatchPrefix}"/><Entry Grid.Column="1" WidthRequest="90" Placeholder="Cantidad" Keyboard="Numeric" Text="{Binding BatchQuantity}"/></Grid>
+  <Button Text="Crear lote (contraseñas numéricas de 6 dígitos)" Command="{Binding AddBatchCommand}"/>
+  <CollectionView ItemsSource="{Binding GeneratedCredentials}" HeightRequest="100"><CollectionView.ItemTemplate><DataTemplate><Label Text="{Binding .}" FontFamily="Consolas"/></DataTemplate></CollectionView.ItemTemplate></CollectionView>
+  <Label Text="Usuarios y tiempo" FontAttributes="Bold" FontSize="20"/>
+  <CollectionView ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser}" SelectionMode="Single" HeightRequest="180"><CollectionView.ItemTemplate><DataTemplate><Grid ColumnDefinitions="*,*,Auto"><Label Text="{Binding Name}"/><Label Grid.Column="1" Text="{Binding Profile}"/><VerticalStackLayout Grid.Column="2"><Label Text="{Binding Uptime, StringFormat='Usado: {0:g}'}"/><Label Text="{Binding Remaining, StringFormat='Restante: {0:g}'}"/></VerticalStackLayout></Grid></DataTemplate></CollectionView.ItemTemplate></CollectionView>
+  <Button Text="Eliminar usuario seleccionado" Command="{Binding RemoveUserCommand}" BackgroundColor="IndianRed"/><Label Text="{Binding Message}"/>
+ </VerticalStackLayout></ScrollView>
+</ContentPage>
