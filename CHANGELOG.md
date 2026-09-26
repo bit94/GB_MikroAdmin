@@ -4,6 +4,34 @@ Las fechas siguen el formato `AAAA-MM-DD`. Los cambios se agrupan por fase de tr
 
 ## [Sin publicar]
 
+### Añadido — Fase 2: entrega de los vouchers
+
+- **Exportar a CSV.** Separado con punto y coma y no con coma, porque el destino habitual es
+  Excel en configuración regional española, donde la coma es el separador decimal. El escapado
+  sigue RFC 4180 para campos con separador, comillas o saltos de línea.
+- **PDF imprimible de vouchers.** Tarjetas recortables de 3 × 9 por hoja A4, con el código a
+  26 pt —es el dato que se dicta—, el perfil, la duración y la fecha. El código se encoge solo
+  si no cabe en la tarjeta.
+- **Compartir el lote** con las aplicaciones del sistema (WhatsApp, correo, almacenamiento).
+- **Reimprimir desde el histórico**, con los botones CSV, Reimprimir y Quitar por cada lote.
+- **Progreso real durante la generación**: barra de avance y contador `n de m`.
+- **Cancelar un lote a medias.** Un lote de 100 usuarios tarda minutos y antes no había forma de
+  pararlo. Lo ya creado se conserva y se guarda en el histórico, porque esos usuarios existen en
+  el router aunque el lote se interrumpa.
+
+### Notas técnicas
+
+- `VoucherPdfWriter` escribe el PDF directamente en lugar de añadir una dependencia: el documento
+  es una retícula de tarjetas con texto y las librerías habituales añaden varios megabytes a una
+  aplicación móvil. Usa Helvetica, una de las catorce fuentes estándar que todo lector incorpora,
+  así que no hay que empotrar ningún archivo. Las pruebas verifican las marcas del formato y que
+  los desplazamientos de la tabla de referencias cruzadas apunten a cada objeto.
+- `VoucherBatchExport` vive en Core y sustituye al `VoucherBatch` que estaba en los ViewModels:
+  así el exportador y el escritor de PDF no dependen de MAUI y son verificables.
+- `IFileExporter` abstrae guardar, compartir e imprimir. Imprimir abre el PDF con la aplicación
+  predeterminada del sistema; desde ahí el usuario elige impresora, que es el camino que funciona
+  en Android y Windows sin dependencias adicionales.
+
 ### Corregido — el modo real no habría funcionado
 
 - **Eliminación de usuarios.** `RemoveUserAsync` enviaba el nombre del usuario en el parámetro

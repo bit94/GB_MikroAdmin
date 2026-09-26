@@ -31,10 +31,11 @@ Leyenda: `[x]` hecho · `[ ]` pendiente
 - [x] Reintento ante colisión de códigos
 - [x] Lote parcial que no pierde los códigos ya creados
 - [x] Histórico local de lotes generados
-- [ ] Exportar el lote a CSV
-- [ ] PDF imprimible de vouchers (código, perfil, duración, fecha)
-- [ ] Compartir el lote desde el móvil
-- [ ] Cancelación y progreso real durante la creación de un lote largo
+- [x] Exportar el lote a CSV
+- [x] PDF imprimible de vouchers (código, perfil, duración, fecha)
+- [x] Compartir el lote desde el móvil
+- [x] Cancelación y progreso real durante la creación de un lote largo
+- [ ] Recordar la última cantidad y el último perfil usados al abrir la aplicación
 
 ## Fase 3 — Administración diaria
 
