@@ -33,9 +33,20 @@
       <CollectionView.ItemTemplate>
         <DataTemplate>
           <Border Style="{StaticResource Card}" Margin="0,0,0,6">
-            <VerticalStackLayout Spacing="4">
+            <VerticalStackLayout Spacing="6">
               <Label Text="{Binding Title}" FontAttributes="Bold" />
               <Label Text="{Binding Codes}" Style="{StaticResource Mono}" FontSize="13" />
+              <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
+                <Button Text="CSV" Padding="8,4" FontSize="13"
+                        Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.ExportBatchCommand}"
+                        CommandParameter="{Binding .}" />
+                <Button Grid.Column="1" Text="Reimprimir" Padding="8,4" FontSize="13"
+                        Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.PrintBatchCommand}"
+                        CommandParameter="{Binding .}" />
+                <Button Grid.Column="2" Text="Quitar" Padding="8,4" FontSize="13" Style="{StaticResource DangerButton}"
+                        Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeleteBatchCommand}"
+                        CommandParameter="{Binding .}" />
+              </Grid>
             </VerticalStackLayout>
           </Border>
         </DataTemplate>
