@@ -13,7 +13,7 @@ public sealed class TickFakeConnectionTests
         await router.ConnectAsync(new("router", 8729, "admin", "secret", true, true), CancellationToken.None);
         await router.AddUserAsync("cliente-1", "no-se-expone", "limitado", TimeSpan.FromHours(1), CancellationToken.None);
 
-        var user = Assert.Single((await router.UsersAsync(CancellationToken.None)).Where(x => x.Name == "cliente-1"));
+        var user = Assert.Single(await router.UsersAsync(CancellationToken.None), x => x.Name == "cliente-1");
         Assert.Equal(TimeSpan.FromHours(1), user.LimitUptime);
     }
 

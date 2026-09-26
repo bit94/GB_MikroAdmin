@@ -116,7 +116,78 @@ public sealed class HotspotProvisioningServiceTests
         await cts.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => service.CreateBatchAsync(5, "limitado", TimeSpan.FromHours(1), cts.Token));
+            () => service.CreateBatchAsync(5, "limitado", TimeSpan.FromHours(1), null, cts.Token));
+    }
+
+    [Fact]
+    public async Task CreateBatch_reports_progress_from_zero_to_total()
+    {
+        var service = new HotspotProvisioningService(new RecordingWriter(), new SequentialCodes(400_000));
+        var reports = new List<BatchProgress>();
+
+        await service.CreateBatchAsync(
+            4, "limitado", TimeSpan.FromHours(1), new CollectingProgress(reports));
+
+        Assert.Equal(0, reports[0].Completed);
+        Assert.Equal(4, reports[^1].Completed);
+        Assert.All(reports, r => Assert.Equal(4, r.Total));
+    }
+
+    /// <summary>El avance llega hasta el total aunque el router rechace usuarios por el camino.</summary>
+    [Fact]
+    public async Task CreateBatch_still_reports_full_progress_when_some_fail()
+    {
+        var router = new RecordingWriter { RejectFrom = 2 };
+        var service = new HotspotProvisioningService(router, new SequentialCodes(500_000));
+        var reports = new List<BatchProgress>();
+
+        await Assert.ThrowsAsync<VoucherBatchException>(
+            () => service.CreateBatchAsync(4, "limitado", TimeSpan.FromHours(1), new CollectingProgress(reports)));
+
+        Assert.Equal(4, reports[^1].Completed);
+    }
+
+    [Fact]
+    public void BatchProgress_percent_and_remaining_are_consistent()
+    {
+        var progress = new BatchProgress(25, 100);
+
+        Assert.Equal(75, progress.Remaining);
+        Assert.Equal(25, progress.Percent);
+    }
+
+    [Fact]
+    public void BatchProgress_handles_an_empty_total_without_dividing_by_zero()
+        => Assert.Equal(0, new BatchProgress(0, 0).Percent);
+
+    /// <summary>Se cancela a mitad del lote y lo ya creado debe seguir siendo válido.</summary>
+    [Fact]
+    public async Task CreateBatch_cancelling_midway_keeps_what_was_already_created()
+    {
+        var router = new RecordingWriter();
+        var service = new HotspotProvisioningService(router, new SequentialCodes(600_000));
+        using var cts = new CancellationTokenSource();
+        var progress = new CancellingProgress(cts, cancelAt: 2);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => service.CreateBatchAsync(10, "limitado", TimeSpan.FromHours(1), progress, cts.Token));
+
+        // Los dos primeros entraron en el router antes de que se pidiera la cancelación.
+        Assert.Equal(2, router.Writes.Count);
+    }
+
+    private sealed class CollectingProgress(List<BatchProgress> reports) : IProgress<BatchProgress>
+    {
+        public void Report(BatchProgress value) => reports.Add(value);
+    }
+
+    private sealed class CancellingProgress(CancellationTokenSource source, int cancelAt) : IProgress<BatchProgress>
+    {
+        public void Report(BatchProgress value)
+        {
+            if (value.Completed >= cancelAt)
+                source.Cancel();
+        }
     }
 
     private sealed class RecordingWriter : IRouterUserWriter
