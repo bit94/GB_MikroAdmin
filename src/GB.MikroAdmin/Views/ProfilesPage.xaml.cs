@@ -4,9 +4,9 @@ namespace GB.MikroAdmin.Views;
 
 public partial class ProfilesPage : ContentPage
 {
-    private readonly DashboardViewModel _viewModel;
+    private readonly ProfilesViewModel _viewModel;
 
-    public ProfilesPage(DashboardViewModel viewModel)
+    public ProfilesPage(ProfilesViewModel viewModel)
     {
         InitializeComponent();
         BindingContext = _viewModel = viewModel;

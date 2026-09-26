@@ -1,29 +1,64 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:GB.MikroAdmin.Views"
              x:Class="GB.MikroAdmin.Views.ProfilesPage"
              Title="Perfiles">
-    <VerticalStackLayout Padding="20" Spacing="12">
-        <Button Text="Actualizar perfiles" Command="{Binding RefreshCommand}" />
-        <Label Text="Crear perfil Hotspot" FontAttributes="Bold" FontSize="20" />
-        <Entry Placeholder="Nombre del perfil" Text="{Binding NewProfileName}" />
-        <Entry Placeholder="Límite, por ejemplo 2M/2M" Text="{Binding RateLimit}" />
-        <Entry Placeholder="Duración DD:HH:MM, ej. 01:02:30" Keyboard="Numeric" Text="{Binding VoucherDuration}" />
-        <Button Text="Agregar perfil" Command="{Binding AddProfileCommand}" />
-        <Label Text="Perfiles disponibles" FontAttributes="Bold" FontSize="20" />
-        <CollectionView ItemsSource="{Binding Profiles}">
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <Grid Padding="8" ColumnDefinitions="*,Auto">
-                        <Label Text="{Binding Name}" FontAttributes="Bold" />
-                        <VerticalStackLayout Grid.Column="1">
-                            <Label Text="{Binding RateLimit}" />
-                            <Label Text="{Binding VoucherDuration, StringFormat='Duración: {0:g}'}" FontSize="12" />
-                        </VerticalStackLayout>
-                    </Grid>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
-        <Label Text="{Binding Message}" />
+
+  <ContentPage.Resources>
+    <views:NoticeColorConverter x:Key="NoticeColor" />
+  </ContentPage.Resources>
+
+  <Grid RowDefinitions="Auto,*">
+    <VerticalStackLayout Grid.Row="0" Padding="12" Spacing="10">
+      <Border Style="{StaticResource Card}" BackgroundColor="{StaticResource SurfaceAlt}">
+        <VerticalStackLayout Spacing="1">
+          <Label Text="Conectado a" Style="{StaticResource Caption}" />
+          <Label Text="{Binding Connection.Display}" FontAttributes="Bold" />
+        </VerticalStackLayout>
+      </Border>
+
+      <Label Text="Nuevo perfil" Style="{StaticResource SectionTitle}" />
+      <Entry Placeholder="Nombre del perfil" Text="{Binding NewProfileName}" />
+      <Entry Placeholder="Límite de velocidad, ej. 2M/2M" Text="{Binding RateLimit}" />
+      <Entry Placeholder="Duración del voucher: HH:MM:SS o 7d, 12h, 90m" Text="{Binding VoucherDuration}" />
+      <Label Text="La duración se guarda en el comentario del perfil, porque RouterOS no tiene un campo propio para ella."
+             Style="{StaticResource Caption}" />
+      <Button Text="Crear perfil" Command="{Binding AddProfileCommand}" />
+
+      <CollectionView ItemsSource="{Binding Notices}" HeightRequest="72">
+        <CollectionView.ItemTemplate>
+          <DataTemplate>
+            <Label Text="{Binding Text}" FontSize="13"
+                   TextColor="{Binding Severity, Converter={StaticResource NoticeColor}}" />
+          </DataTemplate>
+        </CollectionView.ItemTemplate>
+      </CollectionView>
+
+      <Label Text="Perfiles disponibles" Style="{StaticResource SectionTitle}" />
+      <Button Text="Actualizar" Command="{Binding RefreshCommand}" Padding="14,6" HorizontalOptions="Start" />
     </VerticalStackLayout>
+
+    <CollectionView Grid.Row="1" ItemsSource="{Binding Profiles}" Margin="12,4,12,12">
+      <CollectionView.EmptyView>
+        <Label Text="No hay perfiles." Style="{StaticResource Caption}" Margin="0,20" HorizontalOptions="Center" />
+      </CollectionView.EmptyView>
+      <CollectionView.ItemTemplate>
+        <DataTemplate>
+          <Border Style="{StaticResource Card}" Margin="0,0,0,6">
+            <Grid ColumnDefinitions="*,Auto">
+              <VerticalStackLayout Spacing="1">
+                <Label Text="{Binding Name}" FontAttributes="Bold" />
+                <Label Text="{Binding RateLimit, StringFormat='Velocidad: {0}'}" Style="{StaticResource Caption}" />
+              </VerticalStackLayout>
+              <VerticalStackLayout Grid.Column="1" Spacing="1" HorizontalOptions="End">
+                <Label Text="{Binding VoucherDuration, StringFormat='Voucher: {0:g}'}" />
+                <Label Text="{Binding SharedUsers, StringFormat='Usuarios: {0}'}" Style="{StaticResource Caption}" HorizontalOptions="End" />
+              </VerticalStackLayout>
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </CollectionView.ItemTemplate>
+    </CollectionView>
+  </Grid>
 </ContentPage>

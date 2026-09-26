@@ -3,14 +3,29 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="GB.MikroAdmin.Views.MainMenuPage"
              Title="Inicio">
-    <ScrollView>
-        <VerticalStackLayout Padding="24" Spacing="16">
-            <Label Text="MikroAdmin" FontAttributes="Bold" FontSize="30" />
-            <Label Text="Selecciona un módulo para administrar el router." TextColor="Gray" />
+  <ScrollView>
+    <VerticalStackLayout Padding="16" Spacing="10">
+      <Label Text="MikroAdmin" FontAttributes="Bold" FontSize="28" />
+      <Label Text="Administración de vouchers de internet por tiempo." Style="{StaticResource Caption}" />
 
-            <Button Text="Interfaces" Command="{Binding GoToInterfacesCommand}" HeightRequest="64" />
-            <Button Text="Usuarios Hotspot" Command="{Binding GoToUsersCommand}" HeightRequest="64" />
-            <Button Text="Perfiles y ancho de banda" Command="{Binding GoToProfilesCommand}" HeightRequest="64" />
-        </VerticalStackLayout>
-    </ScrollView>
+      <Border Style="{StaticResource Card}" BackgroundColor="{StaticResource SurfaceAlt}">
+        <Grid ColumnDefinitions="*,Auto">
+          <VerticalStackLayout Spacing="1">
+            <Label Text="Conectado a" Style="{StaticResource Caption}" />
+            <Label Text="{Binding Connection.Display}" FontAttributes="Bold" />
+          </VerticalStackLayout>
+          <Button Grid.Column="1" Text="Desconectar" Command="{Binding DisconnectCommand}" Padding="12,6" />
+        </Grid>
+      </Border>
+
+      <Label Text="Operación diaria" Style="{StaticResource SectionTitle}" />
+      <Button Text="Vouchers activos" Command="{Binding GoToUsersCommand}" HeightRequest="58" />
+      <Button Text="Generar vouchers" Command="{Binding GoToGenerateCommand}" HeightRequest="58" />
+      <Button Text="Histórico de lotes" Command="{Binding GoToHistoryCommand}" HeightRequest="58" />
+
+      <Label Text="Configuración del router" Style="{StaticResource SectionTitle}" />
+      <Button Text="Perfiles y ancho de banda" Command="{Binding GoToProfilesCommand}" HeightRequest="58" />
+      <Button Text="Interfaces" Command="{Binding GoToInterfacesCommand}" HeightRequest="58" />
+    </VerticalStackLayout>
+  </ScrollView>
 </ContentPage>

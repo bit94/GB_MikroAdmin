@@ -1,12 +1,39 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui" xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" x:Class="GB.MikroAdmin.Views.LoginPage" Title="Conectar MikroTik">
- <ScrollView><VerticalStackLayout Padding="24" Spacing="12">
-  <Label Text="MikroAdmin" FontSize="30" FontAttributes="Bold"/><Label Text="API segura de RouterOS" TextColor="Gray"/>
-  <Entry Placeholder="IP o DNS" Text="{Binding Host}"/><Entry Placeholder="Puerto API-SSL (8729)" Keyboard="Numeric" Text="{Binding Port}"/>
-  <Entry Placeholder="Usuario" Text="{Binding UserName}"/><Entry Placeholder="Contraseña" IsPassword="True" Text="{Binding Password}"/>
-  <HorizontalStackLayout><Switch IsToggled="{Binding UseTls}"/><Label Text="Usar TLS / API-SSL" VerticalOptions="Center"/></HorizontalStackLayout>
-  <HorizontalStackLayout><Switch IsToggled="{Binding Simulated}"/><Label Text="Modo simulado (sin router)" VerticalOptions="Center"/></HorizontalStackLayout>
-  <Button Text="Conectar" Command="{Binding ConnectCommand}"/><Label Text="{Binding Message}" TextColor="Crimson"/>
-  <Label Text="Las credenciales se guardan con SecureStorage. En modo real se requiere api-ssl, certificado válido y puerto 8729." FontSize="12" TextColor="Gray"/>
- </VerticalStackLayout></ScrollView>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="GB.MikroAdmin.Views.LoginPage"
+             Title="Conectar MikroTik">
+  <ScrollView>
+    <VerticalStackLayout Padding="20" Spacing="10">
+      <Label Text="MikroAdmin" FontSize="28" FontAttributes="Bold" />
+      <Label Text="API segura de RouterOS" Style="{StaticResource Caption}" />
+
+      <Label Text="Simulación" Style="{StaticResource SectionTitle}" />
+      <HorizontalStackLayout Spacing="8">
+        <Switch IsToggled="{Binding Simulated}" />
+        <Label Text="Modo simulado (sin router)" VerticalOptions="Center" />
+      </HorizontalStackLayout>
+      <Label Text="En simulado se crea un router en memoria: puedes probar altas, bajas y perfiles sin tocar ningún equipo."
+             Style="{StaticResource Caption}" />
+
+      <Label Text="Conexión" Style="{StaticResource SectionTitle}" />
+      <Entry Placeholder="IP o DNS, ej. 192.168.88.1" Text="{Binding Host}" />
+      <Entry Placeholder="Puerto API-SSL (8729)" Keyboard="Numeric" Text="{Binding Port}" />
+
+      <!-- En simulado no hay credenciales que valgan, así que se ocultan para no confundir. -->
+      <VerticalStackLayout Spacing="10" IsVisible="{Binding RequiresCredentials}">
+        <Entry Placeholder="Usuario" Text="{Binding UserName}" />
+        <Entry Placeholder="Contraseña" IsPassword="True" Text="{Binding Password}" />
+        <HorizontalStackLayout Spacing="8">
+          <Switch IsToggled="{Binding UseTls}" />
+          <Label Text="Usar TLS / API-SSL" VerticalOptions="Center" />
+        </HorizontalStackLayout>
+      </VerticalStackLayout>
+
+      <Button Text="Conectar" Command="{Binding ConnectCommand}" IsEnabled="{Binding IsConnecting, Converter={StaticResource Invert}}" />
+      <Label Text="{Binding Message}" TextColor="{StaticResource StateExpired}" />
+      <Label Text="Las credenciales se guardan solo en SecureStorage. El modo real exige api-ssl en el router, un certificado de confianza en el puerto 8729, y rechaza certificados autofirmados, vencidos o con un SAN que no coincida con el host."
+             Style="{StaticResource Caption}" />
+    </VerticalStackLayout>
+  </ScrollView>
 </ContentPage>

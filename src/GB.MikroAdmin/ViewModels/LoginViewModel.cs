@@ -1,19 +1,121 @@
-using GB.MikroAdmin.Models;
-using GB.MikroAdmin.Services;
 using System.Windows.Input;
+using GB.MikroAdmin.Core.Models;
+using GB.MikroAdmin.Core.Services;
+using GB.MikroAdmin.Views;
+
 namespace GB.MikroAdmin.ViewModels;
 
 public sealed class LoginViewModel : ObservableObject
 {
-    readonly IRouterSettingsStore _settings; readonly IRouterService _router; string _host = "192.168.88.1", _port = "8729", _user = "admin", _password = "", _message = ""; bool _simulated = true, _tls = true;
+    private readonly IRouterSettingsStore _settings;
+    private readonly IRouterService _router;
+    private readonly ConnectionState _connection;
+
+    private string _host = "192.168.88.1";
+    private string _port = "8729";
+    private string _userName = "admin";
+    private string _password = string.Empty;
+    private string _message = string.Empty;
+    private bool _simulated = true;
+    private bool _useTls = true;
+    private bool _isConnecting;
+
+    public LoginViewModel(IRouterSettingsStore settings, IRouterService router, ConnectionState connection)
+    {
+        _settings = settings;
+        _router = router;
+        _connection = connection;
+        ConnectCommand = new AsyncCommand(ConnectAsync);
+    }
+
     public string Host { get => _host; set => Set(ref _host, value); }
     public string Port { get => _port; set => Set(ref _port, value); }
-    public string UserName { get => _user; set => Set(ref _user, value); }
+    public string UserName { get => _userName; set => Set(ref _userName, value); }
     public string Password { get => _password; set => Set(ref _password, value); }
-    public bool Simulated { get => _simulated; set => Set(ref _simulated, value); }
-    public bool UseTls { get => _tls; set => Set(ref _tls, value); }
     public string Message { get => _message; set => Set(ref _message, value); }
+
+    public bool Simulated
+    {
+        get => _simulated;
+        set
+        {
+            if (Set(ref _simulated, value))
+            {
+                // En simulado no hay TLS ni credenciales que valgan; se refleja para no confundir.
+                if (value)
+                    UseTls = false;
+                Raise(nameof(RequiresCredentials));
+            }
+        }
+    }
+
+    public bool UseTls
+    {
+        get => _useTls;
+        set
+        {
+            if (Set(ref _useTls, value))
+                Raise(nameof(RequiresCredentials));
+        }
+    }
+
+    /// <summary>En modo simulado no hace falta usuario ni contraseña reales.</summary>
+    public bool RequiresCredentials => !Simulated;
+
+    public bool IsConnecting
+    {
+        get => _isConnecting;
+        private set => Set(ref _isConnecting, value);
+    }
+
     public ICommand ConnectCommand { get; }
-    public LoginViewModel(IRouterSettingsStore settings, IRouterService router) { _settings = settings; _router = router; ConnectCommand = new AsyncCommand(ConnectAsync); }
-    async Task ConnectAsync() { try { if (!int.TryParse(Port, out var port)) throw new ArgumentException("Puerto inválido."); await _settings.SaveAsync(new(Host, port, UserName, Password, UseTls, Simulated)); await _router.ConnectAsync(); Password = ""; await Shell.Current.GoToAsync("//home"); } catch (Exception ex) { Message = ex.Message; } }
+
+    public async Task RestoreAsync()
+    {
+        var saved = await _settings.GetAsync();
+        if (saved is null)
+            return;
+
+        Host = saved.Host;
+        Port = saved.Port.ToString();
+        UserName = saved.UserName;
+        Simulated = saved.Simulated;
+        UseTls = saved.UseTls;
+        // La contraseña nunca se rellena: vive solo en SecureStorage y se vuelve a pedir.
+    }
+
+    private async Task ConnectAsync()
+    {
+        if (IsConnecting)
+            return;
+
+        IsConnecting = true;
+        Message = string.Empty;
+        try
+        {
+            if (!int.TryParse(Port, out var port) || port is < 1 or > 65535)
+                throw new ArgumentException("El puerto debe estar entre 1 y 65535.");
+            if (!Simulated && string.IsNullOrWhiteSpace(UserName))
+                throw new ArgumentException("Indica el usuario del router.");
+
+            // Se guarda antes de conectar para que el servicio lea la misma configuración.
+            await _settings.SaveAsync(new RouterSettings(
+                Host.Trim(), port, UserName.Trim(), Password,
+                Simulated ? false : UseTls, Simulated));
+
+            await _router.ConnectAsync();
+            _connection.Refresh();
+
+            Password = string.Empty;
+            await Shell.Current.GoToAsync(Routes.Home);
+        }
+        catch (Exception exception)
+        {
+            Message = exception.Message;
+        }
+        finally
+        {
+            IsConnecting = false;
+        }
+    }
 }

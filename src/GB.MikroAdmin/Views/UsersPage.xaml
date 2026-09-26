@@ -1,39 +1,88 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:GB.MikroAdmin.Views"
              x:Class="GB.MikroAdmin.Views.UsersPage"
-             Title="Usuarios">
-    <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="12">
-            <Button Text="Actualizar usuarios" Command="{Binding RefreshCommand}" />
-            <Label Text="Crear usuarios" FontAttributes="Bold" FontSize="20" />
-            <Entry Placeholder="Cantidad (1 a 100)" Keyboard="Numeric" Text="{Binding BatchQuantity}" />
-            <Picker Title="Perfil para todos los usuarios" ItemsSource="{Binding Profiles}" ItemDisplayBinding="{Binding Name}" SelectedItem="{Binding SelectedProfile}" />
-            <Label Text="La duración se toma del plan seleccionado. Cada voucher usa el mismo código como usuario y contraseña." FontSize="12" TextColor="Gray" />
-            <Button Text="Crear usuarios" Command="{Binding AddBatchCommand}" />
-            <CollectionView ItemsSource="{Binding GeneratedCredentials}" HeightRequest="100">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate><Label Text="{Binding .}" FontFamily="Consolas" /></DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
+             Title="Vouchers">
 
-            <Label Text="Usuarios existentes" FontAttributes="Bold" FontSize="20" />
-            <CollectionView ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser}" SelectionMode="Single" HeightRequest="220">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Grid Padding="6" ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
-                            <Label Text="{Binding Name}" />
-                            <Label Grid.Column="1" Text="{Binding Profile}" />
-                            <VerticalStackLayout Grid.Column="2">
-                                <Label Text="{Binding Uptime, StringFormat='Usado: {0:g}'}" />
-                                <Label Text="{Binding Remaining, StringFormat='Restante: {0:g}'}" />
-                            </VerticalStackLayout>
-                        </Grid>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
-            <Button Text="Eliminar usuario seleccionado" Command="{Binding RemoveUserCommand}" BackgroundColor="IndianRed" />
-            <Label Text="{Binding Message}" />
+  <ContentPage.Resources>
+    <views:VoucherStateTextConverter x:Key="StateText" />
+    <views:VoucherStateColorConverter x:Key="StateColor" />
+    <views:RemainingTextConverter x:Key="Remaining" />
+    <views:NoticeColorConverter x:Key="NoticeColor" />
+  </ContentPage.Resources>
+
+  <Grid RowDefinitions="Auto,Auto,*">
+
+    <!-- Barra de conexión: en uso diario el dato más importante es a qué router estás pegado. -->
+    <Border Grid.Row="0" Style="{StaticResource Card}" BackgroundColor="{StaticResource SurfaceAlt}" Margin="12,12,12,0">
+      <Grid ColumnDefinitions="*,Auto">
+        <VerticalStackLayout Spacing="1">
+          <Label Text="Conectado a" Style="{StaticResource Caption}" />
+          <Label Text="{Binding Connection.Display}" FontAttributes="Bold" />
         </VerticalStackLayout>
-    </ScrollView>
+        <Button Grid.Column="1" Text="Actualizar" Command="{Binding RefreshCommand}" Padding="14,6" />
+      </Grid>
+    </Border>
+
+    <VerticalStackLayout Grid.Row="1" Padding="12,10,12,0" Spacing="8">
+      <Label Text="{Binding Summary}" Style="{StaticResource Caption}" />
+
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <Entry Placeholder="Buscar por código o perfil" Text="{Binding Filter}" />
+        <HorizontalStackLayout Grid.Column="1" Spacing="4">
+          <CheckBox IsChecked="{Binding OnlyExpired}" Color="{StaticResource StateExpired}" />
+          <Label Text="Solo agotados" VerticalOptions="Center" Style="{StaticResource Caption}" />
+        </HorizontalStackLayout>
+      </Grid>
+
+      <HorizontalStackLayout Spacing="8">
+        <Button Text="Eliminar seleccionado" Command="{Binding DeleteSelectedCommand}" Style="{StaticResource DangerButton}" Padding="12,6" />
+        <Button Text="Limpiar agotados" Command="{Binding RemoveExpiredCommand}" Padding="12,6" />
+      </HorizontalStackLayout>
+
+      <!-- Avisos con severidad; se conservan los últimos para poder releer un error. -->
+      <CollectionView ItemsSource="{Binding Notices}" HeightRequest="72">
+        <CollectionView.ItemTemplate>
+          <DataTemplate>
+            <Label Text="{Binding Text}" FontSize="13"
+                   TextColor="{Binding Severity, Converter={StaticResource NoticeColor}}"
+                   Margin="0,0,0,2" />
+          </DataTemplate>
+        </CollectionView.ItemTemplate>
+      </CollectionView>
+    </VerticalStackLayout>
+
+    <!-- Lista de vouchers: código, perfil, tiempo restante y acción directa por fila. -->
+    <CollectionView Grid.Row="2" ItemsSource="{Binding FilteredUsers}" Margin="12,4,12,12">
+      <CollectionView.EmptyView>
+        <Label Text="No hay vouchers que coincidan." Style="{StaticResource Caption}" HorizontalOptions="Center" Margin="0,30" />
+      </CollectionView.EmptyView>
+      <CollectionView.ItemTemplate>
+        <DataTemplate>
+          <Border Style="{StaticResource Card}" Margin="0,0,0,6">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
+              <BoxView WidthRequest="4" CornerRadius="2"
+                       Color="{Binding State, Converter={StaticResource StateColor}}" />
+              <VerticalStackLayout Grid.Column="1" Spacing="1">
+                <Label Text="{Binding Name}" Style="{StaticResource Mono}" />
+                <Label Text="{Binding Profile}" Style="{StaticResource Caption}" />
+              </VerticalStackLayout>
+              <VerticalStackLayout Grid.Column="2" Spacing="1" HorizontalOptions="End">
+                <Label Text="{Binding Remaining, Converter={StaticResource Remaining}}"
+                       TextColor="{Binding State, Converter={StaticResource StateColor}}"
+                       FontAttributes="Bold" HorizontalOptions="End" />
+                <Label Text="{Binding State, Converter={StaticResource StateText}}"
+                       Style="{StaticResource Caption}" HorizontalOptions="End" />
+              </VerticalStackLayout>
+              <Button Grid.Column="3" Text="Borrar" Padding="10,4" FontSize="13"
+                      Style="{StaticResource DangerButton}"
+                      Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeleteUserCommand}"
+                      CommandParameter="{Binding .}" />
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </CollectionView.ItemTemplate>
+    </CollectionView>
+  </Grid>
 </ContentPage>

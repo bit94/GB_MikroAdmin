@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:GB.MikroAdmin.Views"
+             x:Class="GB.MikroAdmin.Views.GeneratePage"
+             Title="Generar vouchers">
+
+  <ContentPage.Resources>
+    <views:NoticeColorConverter x:Key="NoticeColor" />
+  </ContentPage.Resources>
+
+  <ScrollView>
+    <VerticalStackLayout Padding="12" Spacing="10">
+
+      <Border Style="{StaticResource Card}" BackgroundColor="{StaticResource SurfaceAlt}">
+        <VerticalStackLayout Spacing="1">
+          <Label Text="Conectado a" Style="{StaticResource Caption}" />
+          <Label Text="{Binding Connection.Display}" FontAttributes="Bold" />
+        </VerticalStackLayout>
+      </Border>
+
+      <Label Text="Nuevo lote" Style="{StaticResource SectionTitle}" />
+      <Label Text="Cada voucher usa el mismo código como usuario y contraseña, para poder entregarlo con un solo dato."
+             Style="{StaticResource Caption}" />
+
+      <Picker Title="Perfil" ItemsSource="{Binding Profiles}" ItemDisplayBinding="{Binding Name}" SelectedItem="{Binding SelectedProfile}" />
+      <Label Text="{Binding SelectedProfile.VoucherDuration, StringFormat='Duración por voucher: {0:g}'}"
+             Style="{StaticResource Caption}" />
+
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <Entry Placeholder="Cantidad (1 a 100)" Keyboard="Numeric" Text="{Binding BatchQuantity}" />
+        <Button Grid.Column="1" Text="Generar" Command="{Binding CreateBatchCommand}" Padding="18,6" />
+      </Grid>
+
+      <!-- Los avisos se muestran junto a la acción y sobreviven a la siguiente operación. -->
+      <CollectionView ItemsSource="{Binding Notices}" HeightRequest="72">
+        <CollectionView.ItemTemplate>
+          <DataTemplate>
+            <Label Text="{Binding Text}" FontSize="13"
+                   TextColor="{Binding Severity, Converter={StaticResource NoticeColor}}" />
+          </DataTemplate>
+        </CollectionView.ItemTemplate>
+      </CollectionView>
+
+      <Label Text="Códigos generados" Style="{StaticResource SectionTitle}" />
+      <Label Text="Se guardan en el histórico, así que puedes cerrar la aplicación y recuperarlos después."
+             Style="{StaticResource Caption}" />
+
+      <CollectionView ItemsSource="{Binding Generated}" HeightRequest="280">
+        <CollectionView.EmptyView>
+          <Label Text="Aún no has generado vouchers." Style="{StaticResource Caption}" Margin="0,20" HorizontalOptions="Center" />
+        </CollectionView.EmptyView>
+        <CollectionView.ItemTemplate>
+          <DataTemplate>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,4" Padding="10">
+              <Grid ColumnDefinitions="*,Auto">
+                <Label Text="{Binding Name}" Style="{StaticResource Mono}" />
+                <Label Grid.Column="1" Text="usuario + contraseña" Style="{StaticResource Caption}" VerticalOptions="Center" />
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </CollectionView.ItemTemplate>
+      </CollectionView>
+
+      <Button Text="Limpiar códigos en pantalla" Command="{Binding ClearGeneratedCommand}" />
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>
