@@ -4,12 +4,21 @@ namespace GB.MikroAdmin.Core.Services;
 
 public record CreatedHotspotUser(string Name, string Password);
 
+/// <summary>Avance de un lote en curso, para poder mostrarlo en pantalla.</summary>
+public readonly record struct BatchProgress(int Completed, int Total)
+{
+    public int Remaining => Total - Completed;
+
+    public double Percent => Total <= 0 ? 0 : (double)Completed / Total * 100;
+}
+
 public interface IHotspotProvisioningService
 {
     Task<IReadOnlyList<CreatedHotspotUser>> CreateBatchAsync(
         int quantity,
         string profile,
         TimeSpan limit,
+        IProgress<BatchProgress>? progress = null,
         CancellationToken cancellationToken = default);
 }
 
@@ -37,6 +46,7 @@ public sealed class HotspotProvisioningService : IHotspotProvisioningService
         int quantity,
         string profile,
         TimeSpan limit,
+        IProgress<BatchProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         if (quantity is < MinQuantity or > MaxQuantity)
@@ -53,6 +63,8 @@ public sealed class HotspotProvisioningService : IHotspotProvisioningService
         var created = new List<CreatedHotspotUser>(quantity);
         var failed = new List<string>();
 
+        progress?.Report(new BatchProgress(0, codes.Count));
+
         for (var index = 0; index < codes.Count; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -66,6 +78,10 @@ public sealed class HotspotProvisioningService : IHotspotProvisioningService
             {
                 failed.Add(code);
             }
+
+            // Se reporta también el avance de los fallidos: de lo contrario la barra se quedaría
+            // corta para siempre cuando el router rechaza alguno.
+            progress?.Report(new BatchProgress(index + 1, codes.Count));
         }
 
         if (failed.Count > 0)
