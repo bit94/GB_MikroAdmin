@@ -55,7 +55,7 @@ public sealed class ProfilesViewModel : PageViewModel
         var duration = DurationInput.Parse(VoucherDuration);
         await _router.AddProfileAsync(NewProfileName.Trim(), RateLimit.Trim(), duration);
 
-        Success($"Perfil «{NewProfileName.Trim()}» creado con {UsersViewModel.Humanize(duration)} de voucher.");
+        Success($"Perfil «{NewProfileName.Trim()}» creado con {VoucherBatchExport.Humanize(duration)} de voucher.");
         NewProfileName = string.Empty;
         await RefreshAsync();
     });

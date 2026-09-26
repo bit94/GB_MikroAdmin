@@ -30,6 +30,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IVoucherCodeGenerator, NumericVoucherCodeGenerator>();
         builder.Services.AddSingleton<IHotspotProvisioningService, HotspotProvisioningService>();
         builder.Services.AddSingleton<IVoucherHistoryStore, VoucherHistoryStore>();
+        builder.Services.AddSingleton<IFileExporter, MauiFileExporter>();
 
         // --- Estado compartido -------------------------------------------------------------
         builder.Services.AddSingleton<ConnectionState>();

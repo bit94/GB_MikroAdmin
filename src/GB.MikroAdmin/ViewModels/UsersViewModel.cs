@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using GB.MikroAdmin.Core.Models;
 using GB.MikroAdmin.Core.Services;
+using GB.MikroAdmin.Services;
 
 namespace GB.MikroAdmin.ViewModels;
 
@@ -14,6 +15,7 @@ public sealed class UsersViewModel : PageViewModel
     private readonly IRouterService _router;
     private readonly IHotspotProvisioningService _provisioning;
     private readonly IVoucherHistoryStore _history;
+    private readonly IFileExporter _exporter;
 
     private string _filter = string.Empty;
     private string _batchQuantity = "10";
@@ -23,23 +25,33 @@ public sealed class UsersViewModel : PageViewModel
     private string _rateLimit = "2M/2M";
     private string _voucherDuration = "01:00:00";
     private bool _onlyExpired;
+    private string _progressText = string.Empty;
+    private double _progressPercent;
+    private bool _isGenerating;
+    private CancellationTokenSource? _batchCancellation;
 
     public UsersViewModel(
         IRouterService router,
         IHotspotProvisioningService provisioning,
         IVoucherHistoryStore history,
+        IFileExporter exporter,
         ConnectionState connection) : base(connection)
     {
         _router = router;
         _provisioning = provisioning;
         _history = history;
+        _exporter = exporter;
 
         RefreshCommand = new AsyncCommand(RefreshAsync);
         CreateBatchCommand = new AsyncCommand(CreateBatchAsync);
+        CancelBatchCommand = new AsyncCommand(() => { _batchCancellation?.Cancel(); return Task.CompletedTask; });
         DeleteUserCommand = new AsyncCommand<HotspotUser>(DeleteUserAsync);
         DeleteSelectedCommand = new AsyncCommand(DeleteSelectedAsync);
         RemoveExpiredCommand = new AsyncCommand(RemoveExpiredAsync);
         ClearGeneratedCommand = new AsyncCommand(() => { Generated.Clear(); return Task.CompletedTask; });
+        ExportCsvCommand = new AsyncCommand(ExportCsvAsync);
+        PrintCommand = new AsyncCommand(PrintAsync);
+        ShareCommand = new AsyncCommand(ShareAsync);
     }
 
     public ObservableCollection<HotspotUser> Users { get; } = [];
@@ -51,20 +63,32 @@ public sealed class UsersViewModel : PageViewModel
     public ObservableCollection<CreatedHotspotUser> Generated { get; } = [];
 
     /// <summary>Texto de progreso mostrado durante la generación de un lote.</summary>
-    public string ProgressText { get; private set; } = string.Empty;
-
-    private void SetProgress(string text)
+    public string ProgressText
     {
-        ProgressText = text;
-        Raise(nameof(ProgressText));
+        get => _progressText;
+        private set => Set(ref _progressText, value);
     }
 
-    /// <summary>Resumen en una línea, para leer el estado del router de un vistazo.</summary>
-    public string Summary => Users.Count == 0
-        ? "Sin vouchers en el router."
-        : $"{Users.Count} vouchers · {Users.Count(u => u.State is VoucherState.InUse)} en uso · " +
-          $"{Users.Count(u => u.State is VoucherState.Available)} sin usar · " +
-          $"{Users.Count(u => u.State is VoucherState.Expired)} agotados";
+    /// <summary>Avance de 0 a 100 para la barra de progreso.</summary>
+    public double ProgressPercent
+    {
+        get => _progressPercent;
+        private set => Set(ref _progressPercent, value);
+    }
+
+    /// <summary>Mientras se genera un lote se puede cancelar, y el botón de generar se bloquea.</summary>
+    public bool IsGenerating
+    {
+        get => _isGenerating;
+        private set
+        {
+            if (Set(ref _isGenerating, value))
+                Raise(nameof(CanExport));
+        }
+    }
+
+    /// <summary>No hay nada que exportar hasta que exista un lote generado.</summary>
+    public bool CanExport => Generated.Count > 0 && !IsGenerating;
 
     public string Filter
     {
@@ -87,10 +111,14 @@ public sealed class UsersViewModel : PageViewModel
 
     public ICommand RefreshCommand { get; }
     public ICommand CreateBatchCommand { get; }
+    public ICommand CancelBatchCommand { get; }
     public ICommand DeleteUserCommand { get; }
     public ICommand DeleteSelectedCommand { get; }
     public ICommand RemoveExpiredCommand { get; }
     public ICommand ClearGeneratedCommand { get; }
+    public ICommand ExportCsvCommand { get; }
+    public ICommand PrintCommand { get; }
+    public ICommand ShareCommand { get; }
 
     public Task RefreshAsync() => RunAsync(async () =>
     {
@@ -116,44 +144,143 @@ public sealed class UsersViewModel : PageViewModel
         Connection.Refresh();
     });
 
-    public Task CreateBatchAsync() => RunAsync(async () =>
+    /// <summary>
+    /// Un lote largo tarda minutos: se informa del avance y se permite cancelar. Lo ya creado
+    /// se conserva, porque esos usuarios existen en el router aunque el lote se interrumpa.
+    /// </summary>
+    public async Task CreateBatchAsync()
     {
-        if (!int.TryParse(BatchQuantity, out var count))
-            throw new ArgumentException("La cantidad debe ser un número.");
+        if (IsGenerating)
+            return;
 
-        var profile = SelectedProfile
-            ?? throw new ArgumentException("Selecciona el perfil que usarán los vouchers.");
-        var duration = profile.VoucherDuration
-            ?? throw new ArgumentException($"El perfil «{profile.Name}» no tiene duración de voucher. " +
-                                           "Créalo de nuevo indicando la duración, o usa otro perfil.");
-
-        Generated.Clear();
-        SetProgress($"Creando {count} vouchers…");
+        IsGenerating = true;
         try
         {
-            var created = await _provisioning.CreateBatchAsync(count, profile.Name, duration);
-            foreach (var voucher in created)
-                Generated.Add(voucher);
+            if (!int.TryParse(BatchQuantity, out var count))
+                throw new ArgumentException("La cantidad debe ser un número.");
 
-            await _history.SaveAsync(new VoucherBatch(DateTimeOffset.Now, profile.Name, duration, created));
-            Success($"Se crearon {created.Count} vouchers de {Humanize(duration)}. Guárdalos antes de cerrar.");
+            var profile = SelectedProfile
+                ?? throw new ArgumentException("Selecciona el perfil que usarán los vouchers.");
+            var duration = profile.VoucherDuration
+                ?? throw new ArgumentException($"El perfil «{profile.Name}» no tiene duración de voucher. " +
+                                               "Créalo de nuevo indicando la duración, o usa otro perfil.");
+
+            Generated.Clear();
+            Raise(nameof(CanExport));
+            ProgressPercent = 0;
+            ProgressText = $"Preparando {count} vouchers…";
+
+            _batchCancellation?.Dispose();
+            _batchCancellation = new CancellationTokenSource();
+
+            // IProgress se construye en el hilo de interfaz; el servicio puede reportar desde
+            // cualquier hilo y aquí se reencauza antes de tocar propiedades enlazadas.
+            var progress = new Progress<BatchProgress>(report =>
+            {
+                ProgressPercent = report.Percent;
+                ProgressText = $"{report.Completed} de {report.Total}…";
+            });
+
+            try
+            {
+                var created = await _provisioning.CreateBatchAsync(
+                    count, profile.Name, duration, progress, _batchCancellation.Token);
+
+                foreach (var voucher in created)
+                    Generated.Add(voucher);
+
+                await _history.SaveAsync(new VoucherBatchExport(DateTimeOffset.Now, profile.Name, duration, created));
+                Success($"Se crearon {created.Count} vouchers de {VoucherBatchExport.Humanize(duration)}. " +
+                        "Puedes exportarlos o imprimirlos.");
+            }
+            catch (OperationCanceledException)
+            {
+                // Lo que ya se creó antes de cancelar sigue siendo válido: se guarda igual.
+                await PersistPartialAsync(profile.Name, duration);
+                Warn($"Lote cancelado. Se conservaron {Generated.Count} vouchers ya creados.");
+            }
+            catch (VoucherBatchException partial)
+            {
+                foreach (var voucher in partial.Created)
+                    Generated.Add(voucher);
+                await PersistPartialAsync(profile.Name, duration);
+                Fail(partial.Message);
+            }
+
+            await LoadUsersAsync();
         }
-        catch (VoucherBatchException partial)
+        catch (Exception exception)
         {
-            // Un lote a medias no debe perder los códigos que sí quedaron válidos en el router.
-            foreach (var voucher in partial.Created)
-                Generated.Add(voucher);
-            if (partial.Created.Count > 0)
-                await _history.SaveAsync(new VoucherBatch(DateTimeOffset.Now, profile.Name, duration, partial.Created));
-            Fail(partial.Message);
+            Fail(exception.Message);
         }
         finally
         {
-            SetProgress(string.Empty);
+            IsGenerating = false;
+            ProgressText = string.Empty;
+            ProgressPercent = 0;
+            Raise(nameof(CanExport));
         }
+    }
 
-        await LoadUsersAsync();
+    private async Task PersistPartialAsync(string profile, TimeSpan duration)
+    {
+        if (Generated.Count == 0)
+            return;
+        await _history.SaveAsync(new VoucherBatchExport(DateTimeOffset.Now, profile, duration, [.. Generated]));
+    }
+
+    private Task ExportCsvAsync() => RunAsync(async () =>
+    {
+        var batch = CurrentBatch();
+        await _exporter.ShareTextAsync(
+            $"vouchers-{DateTime.Now:yyyyMMdd-HHmm}.csv",
+            VoucherExporter.ToCsv(batch),
+            "Exportar vouchers a CSV");
+
+        Success($"Se exportaron {batch.Vouchers.Count} vouchers a CSV.");
     });
+
+    private Task PrintAsync() => RunAsync(async () =>
+    {
+        var batch = CurrentBatch();
+        await _exporter.PrintAsync(
+            $"vouchers-{DateTime.Now:yyyyMMdd-HHmm}.pdf",
+            VoucherPdfWriter.Write(batch),
+            $"Vouchers {batch.Profile}");
+
+        Success("PDF generado. Elige la impresora en la ventana que se abrió.");
+    });
+
+    private Task ShareAsync() => RunAsync(async () =>
+    {
+        var batch = CurrentBatch();
+        await _exporter.ShareBytesAsync(
+            $"vouchers-{DateTime.Now:yyyyMMdd-HHmm}.pdf",
+            VoucherPdfWriter.Write(batch),
+            "application/pdf",
+            "Compartir vouchers");
+
+        Success("Listo para compartir.");
+    });
+
+    /// <summary>
+    /// Construye el lote a partir de lo que hay en pantalla. Se exige que exista algo generado
+    /// para no exportar un archivo vacío.
+    /// </summary>
+    private VoucherBatchExport CurrentBatch()
+    {
+        if (Generated.Count == 0)
+            throw new InvalidOperationException("Genera un lote antes de exportarlo.");
+
+        var profile = SelectedProfile
+            ?? throw new InvalidOperationException("Selecciona el perfil del lote.");
+
+        return new VoucherBatchExport(
+            DateTimeOffset.Now,
+            profile.Name,
+            profile.VoucherDuration ?? TimeSpan.FromHours(1),
+            [.. Generated]);
+    }
 
     private Task DeleteUserAsync(HotspotUser? user) => RunAsync(async () =>
     {
@@ -233,17 +360,12 @@ public sealed class UsersViewModel : PageViewModel
         Raise(nameof(Summary));
     }
 
-    /// <summary>Duración en lenguaje corriente: "1 h" se entiende mejor que "01:00:00".</summary>
-    public static string Humanize(TimeSpan value)
-    {
-        if (value.TotalDays >= 1 && value.TotalDays == Math.Floor(value.TotalDays))
-            return $"{(int)value.TotalDays} d";
-        if (value.TotalHours >= 1 && value.Minutes == 0 && value.Seconds == 0)
-            return $"{(int)value.TotalHours} h";
-        if (value.TotalMinutes >= 1 && value.Seconds == 0)
-            return $"{(int)value.TotalMinutes} min";
-        return value.ToString(@"hh\:mm\:ss");
-    }
+    /// <summary>Resumen en una línea, para leer el estado del router de un vistazo.</summary>
+    public string Summary => Users.Count == 0
+        ? "Sin vouchers en el router."
+        : $"{Users.Count} vouchers · {Users.Count(u => u.State is VoucherState.InUse)} en uso · " +
+          $"{Users.Count(u => u.State is VoucherState.Available)} sin usar · " +
+          $"{Users.Count(u => u.State is VoucherState.Expired)} agotados";
 }
 
 /// <summary>Comando asíncrono que recibe el elemento de la fila como parámetro.</summary>

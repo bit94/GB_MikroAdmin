@@ -29,8 +29,19 @@
 
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
         <Entry Placeholder="Cantidad (1 a 100)" Keyboard="Numeric" Text="{Binding BatchQuantity}" />
-        <Button Grid.Column="1" Text="Generar" Command="{Binding CreateBatchCommand}" Padding="18,6" />
+        <Button Grid.Column="1" Text="Generar" Command="{Binding CreateBatchCommand}"
+                IsEnabled="{Binding IsGenerating, Converter={StaticResource Invert}}" Padding="18,6" />
       </Grid>
+
+      <!-- Progreso y cancelación: un lote de 100 tarda minutos y antes no había forma de pararlo. -->
+      <VerticalStackLayout IsVisible="{Binding IsGenerating}" Spacing="4">
+        <ProgressBar Progress="{Binding ProgressPercent}" ProgressColor="{StaticResource Primary}" />
+        <Grid ColumnDefinitions="*,Auto">
+          <Label Text="{Binding ProgressText}" Style="{StaticResource Caption}" />
+          <Button Grid.Column="1" Text="Cancelar" Command="{Binding CancelBatchCommand}"
+                  Style="{StaticResource DangerButton}" Padding="12,4" FontSize="13" />
+        </Grid>
+      </VerticalStackLayout>
 
       <!-- Los avisos se muestran junto a la acción y sobreviven a la siguiente operación. -->
       <CollectionView ItemsSource="{Binding Notices}" HeightRequest="72">
@@ -46,7 +57,7 @@
       <Label Text="Se guardan en el histórico, así que puedes cerrar la aplicación y recuperarlos después."
              Style="{StaticResource Caption}" />
 
-      <CollectionView ItemsSource="{Binding Generated}" HeightRequest="280">
+      <CollectionView ItemsSource="{Binding Generated}" HeightRequest="240">
         <CollectionView.EmptyView>
           <Label Text="Aún no has generado vouchers." Style="{StaticResource Caption}" Margin="0,20" HorizontalOptions="Center" />
         </CollectionView.EmptyView>
@@ -62,7 +73,16 @@
         </CollectionView.ItemTemplate>
       </CollectionView>
 
-      <Button Text="Limpiar códigos en pantalla" Command="{Binding ClearGeneratedCommand}" />
+      <Label Text="Entregar" Style="{StaticResource SectionTitle}" />
+      <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+        <Button Text="CSV" Command="{Binding ExportCsvCommand}" IsEnabled="{Binding CanExport}" Padding="8,6" />
+        <Button Grid.Column="1" Text="Imprimir" Command="{Binding PrintCommand}" IsEnabled="{Binding CanExport}" Padding="8,6" />
+        <Button Grid.Column="2" Text="Compartir" Command="{Binding ShareCommand}" IsEnabled="{Binding CanExport}" Padding="8,6" />
+      </Grid>
+      <Label Text="CSV para Excel. Imprimir genera tarjetas recortables con el código en grande."
+             Style="{StaticResource Caption}" />
+
+      <Button Text="Limpiar códigos en pantalla" Command="{Binding ClearGeneratedCommand}" Style="{StaticResource Caption}" />
     </VerticalStackLayout>
   </ScrollView>
 </ContentPage>
