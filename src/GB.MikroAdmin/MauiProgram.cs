@@ -47,12 +47,17 @@ public static class MauiProgram
         builder.Services.AddSingleton<VoucherHistoryViewModel>();
 
         // --- Páginas -----------------------------------------------------------------------
-        builder.Services.AddSingleton<LoginPage>();
-        builder.Services.AddSingleton<MainMenuPage>();
-        builder.Services.AddSingleton<UsersPage>();
-        builder.Services.AddSingleton<ProfilesPage>();
-        builder.Services.AddSingleton<InterfacesPage>();
-        builder.Services.AddSingleton<VoucherHistoryPage>();
+        // Se registran a partir de ShellMenu, la misma lista que usa AppShell para construir el
+        // menú. Antes había dos listas paralelas y añadir una sección sin registrar su página no
+        // fallaba al compilar, sino al arrancar: "No service for type ... has been registered".
+        foreach (var pageType in ShellMenu.AllPageTypes)
+            builder.Services.AddSingleton(pageType);
+
+        // Comprobación de arranque: si una sección del menú apunta a una página sin registrar, el
+        // AppShell reventaría al crearse con un mensaje que ni siquiera dice cuál falta. Se revisan
+        // los descriptores del contenedor, sin construir nada: resolver un servicio lo instanciaría
+        // y las páginas aún no se pueden crear (sus StaticResource viven en App.xaml, sin cargar).
+        ShellMenu.VerifyPagesRegistered(builder.Services);
 
         return builder.Build();
     }

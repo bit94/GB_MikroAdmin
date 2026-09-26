@@ -4,33 +4,48 @@ namespace GB.MikroAdmin;
 
 public partial class AppShell : Shell
 {
+    private readonly IServiceProvider _services;
+
     public AppShell(IServiceProvider services)
     {
         InitializeComponent();
+        _services = services;
+    }
+
+    /// <summary>
+    /// Construye el menú. Se llama desde <see cref="App"/> una vez creada la ventana, no desde el
+    /// constructor: las vistas resuelven <c>StaticResource</c> de <c>App.xaml</c>, y mientras
+    /// <c>Application.Current</c> es nulo ese diccionario no existe. Construirlas antes lanzaba
+    /// "StaticResource not found for key Caption" y la aplicación moría al arrancar.
+    /// </summary>
+    public void BuildMenu()
+    {
+        if (Items.Count > 0)
+            return;
+
+        // Las entradas salen de ShellMenu, la misma lista que MauiProgram usa para registrar las
+        // páginas: si se añade una sección, no puede quedar sin su página registrada.
+        var login = BuildContent(ShellMenu.Login);
 
         // El login va fuera del menú: es la pantalla de entrada y no debe verse en el flyout.
-        var login = new ShellContent
-        {
-            Route = Routes.Login.TrimStart('/'),
-            Content = services.GetRequiredService<LoginPage>()
-        };
-        Shell.SetFlyoutBehavior(login, FlyoutBehavior.Disabled);
+        SetFlyoutBehavior(login, FlyoutBehavior.Disabled);
         Items.Add(login);
 
-        Items.Add(BuildSection("MikroAdmin",
-            ("Inicio", "home", services.GetRequiredService<MainMenuPage>()),
-            ("Vouchers", "users", services.GetRequiredService<UsersPage>()),
-            ("Generar", "generate", services.GetRequiredService<GeneratePage>()),
-            ("Perfiles", "profiles", services.GetRequiredService<ProfilesPage>()),
-            ("Interfaces", "interfaces", services.GetRequiredService<InterfacesPage>()),
-            ("Histórico", "history", services.GetRequiredService<VoucherHistoryPage>())));
+        Items.Add(BuildSection("MikroAdmin", ShellMenu.Sections));
     }
 
-    private static ShellItem BuildSection(string title, params (string Title, string Route, Page Page)[] pages)
+    private ShellItem BuildSection(string title, IReadOnlyList<ShellMenu.Entry> entries)
     {
         var section = new ShellItem { Title = title };
-        foreach (var (pageTitle, route, page) in pages)
-            section.Items.Add(new ShellContent { Title = pageTitle, Route = route, Content = page });
+        foreach (var entry in entries)
+            section.Items.Add(BuildContent(entry));
         return section;
     }
+
+    private ShellContent BuildContent(ShellMenu.Entry entry) => new()
+    {
+        Title = entry.Title,
+        Route = entry.Route,
+        ContentTemplate = new DataTemplate(() => (Page)_services.GetRequiredService(entry.PageType))
+    };
 }
