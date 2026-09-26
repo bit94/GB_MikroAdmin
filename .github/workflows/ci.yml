@@ -1,0 +1,53 @@
+name: Compilar y probar
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+# Una ejecución por rama: si llegan varios pushes seguidos, se cancela la anterior.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  pruebas:
+    name: Pruebas de la lógica
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restaurar
+        run: dotnet restore src/GB.MikroAdmin.Core/GB.MikroAdmin.Core.csproj
+
+      # Corre sobre GB.MikroAdmin.Core, que es net10.0: no hace falta instalar la carga de
+      # trabajo de MAUI ni el SDK de Android para verificar la lógica.
+      - name: Probar
+        run: dotnet test tests/GB.MikroAdmin.Tests/GB.MikroAdmin.Tests.csproj --verbosity normal
+
+  compilar-windows:
+    name: Compilar la aplicación (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # Solo la carga de trabajo de Windows: compilar también Android alargaría cada ejecución
+      # sin aportar señal sobre este objetivo.
+      - name: Instalar la carga de trabajo de MAUI para Windows
+        run: dotnet workload install maui-windows
+
+      - name: Compilar
+        run: dotnet build src/GB.MikroAdmin/GB.MikroAdmin.csproj -f net10.0-windows10.0.19041.0 -warnaserror
