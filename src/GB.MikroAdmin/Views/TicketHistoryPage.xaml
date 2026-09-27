@@ -2,7 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:GB.MikroAdmin.Views"
-             x:Class="GB.MikroAdmin.Views.VoucherHistoryPage"
+             x:Class="GB.MikroAdmin.Views.TicketHistoryPage"
              Title="Histórico">
 
   <ContentPage.Resources>
@@ -17,14 +17,14 @@
       <Button Text="Actualizar" Command="{Binding RefreshCommand}" Padding="14,6" HorizontalOptions="Start" />
     </VerticalStackLayout>
 
-    <CollectionView Grid.Row="1" ItemsSource="{Binding Notices}" HeightRequest="40" Margin="12,0">
-      <CollectionView.ItemTemplate>
+    <VerticalStackLayout Grid.Row="1" Margin="12,0" BindableLayout.ItemsSource="{Binding Notices}">
+      <BindableLayout.ItemTemplate>
         <DataTemplate>
           <Label Text="{Binding Text}" FontSize="13"
                  TextColor="{Binding Severity, Converter={StaticResource NoticeColor}}" />
         </DataTemplate>
-      </CollectionView.ItemTemplate>
-    </CollectionView>
+      </BindableLayout.ItemTemplate>
+    </VerticalStackLayout>
 
     <CollectionView Grid.Row="2" ItemsSource="{Binding Batches}" Margin="12,4,12,12">
       <CollectionView.EmptyView>
@@ -34,16 +34,23 @@
         <DataTemplate>
           <Border Style="{StaticResource Card}" Margin="0,0,0,6">
             <VerticalStackLayout Spacing="6">
-              <Label Text="{Binding Title}" FontAttributes="Bold" />
+              <Grid ColumnDefinitions="*,Auto">
+                <Label Text="{Binding Title}" FontAttributes="Bold" />
+                <Label Grid.Column="1" Text="{Binding PrintedSummary}" Style="{StaticResource Caption}"
+                       VerticalOptions="Center" />
+              </Grid>
               <Label Text="{Binding Codes}" Style="{StaticResource Mono}" FontSize="13" />
-              <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
+              <Grid ColumnDefinitions="*,*,*,Auto" ColumnSpacing="8">
                 <Button Text="CSV" Padding="8,4" FontSize="13"
                         Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.ExportBatchCommand}"
                         CommandParameter="{Binding .}" />
                 <Button Grid.Column="1" Text="Reimprimir" Padding="8,4" FontSize="13"
                         Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.PrintBatchCommand}"
                         CommandParameter="{Binding .}" />
-                <Button Grid.Column="2" Text="Quitar" Padding="8,4" FontSize="13" Style="{StaticResource DangerButton}"
+                <Button Grid.Column="2" Text="Térmico" Padding="8,4" FontSize="13"
+                        Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.ThermalBatchCommand}"
+                        CommandParameter="{Binding .}" />
+                <Button Grid.Column="3" Text="Quitar" Padding="8,4" FontSize="13" Style="{StaticResource DangerButton}"
                         Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeleteBatchCommand}"
                         CommandParameter="{Binding .}" />
               </Grid>

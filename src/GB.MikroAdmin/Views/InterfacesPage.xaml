@@ -24,14 +24,14 @@
         <Button Grid.Column="1" Text="Actualizar" Command="{Binding RefreshCommand}" Padding="14,6" />
       </Grid>
 
-      <CollectionView ItemsSource="{Binding Notices}" HeightRequest="72">
-        <CollectionView.ItemTemplate>
+      <VerticalStackLayout BindableLayout.ItemsSource="{Binding Notices}">
+        <BindableLayout.ItemTemplate>
           <DataTemplate>
             <Label Text="{Binding Text}" FontSize="13"
                    TextColor="{Binding Severity, Converter={StaticResource NoticeColor}}" />
           </DataTemplate>
-        </CollectionView.ItemTemplate>
-      </CollectionView>
+        </BindableLayout.ItemTemplate>
+      </VerticalStackLayout>
     </VerticalStackLayout>
 
     <CollectionView Grid.Row="2" ItemsSource="{Binding Interfaces}" Margin="12,0,12,12">

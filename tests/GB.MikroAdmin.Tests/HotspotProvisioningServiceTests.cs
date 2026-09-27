@@ -27,9 +27,9 @@ public sealed class HotspotProvisioningServiceTests
 
         var created = await service.CreateBatchAsync(1, "limitado", TimeSpan.FromHours(1));
 
-        var voucher = Assert.Single(created);
-        Assert.Equal(voucher.Name, voucher.Password);
-        Assert.Equal("555555", voucher.Name);
+        var ticket = Assert.Single(created);
+        Assert.Equal(ticket.Name, ticket.Password);
+        Assert.Equal("555555", ticket.Name);
     }
 
     [Theory]
@@ -93,12 +93,12 @@ public sealed class HotspotProvisioningServiceTests
     /// perderse: se devuelven junto al fallo para que el operador pueda entregarlos.
     /// </summary>
     [Fact]
-    public async Task CreateBatch_reports_partial_failure_without_losing_created_vouchers()
+    public async Task CreateBatch_reports_partial_failure_without_losing_created_tickets()
     {
         var router = new RecordingWriter { RejectFrom = 2 };
         var service = new HotspotProvisioningService(router, new SequentialCodes(200_000));
 
-        var exception = await Assert.ThrowsAsync<VoucherBatchException>(
+        var exception = await Assert.ThrowsAsync<TicketBatchException>(
             () => service.CreateBatchAsync(3, "limitado", TimeSpan.FromHours(1)));
 
         // El primero entró, el segundo y el tercero fueron rechazados por el router.
@@ -141,7 +141,7 @@ public sealed class HotspotProvisioningServiceTests
         var service = new HotspotProvisioningService(router, new SequentialCodes(500_000));
         var reports = new List<BatchProgress>();
 
-        await Assert.ThrowsAsync<VoucherBatchException>(
+        await Assert.ThrowsAsync<TicketBatchException>(
             () => service.CreateBatchAsync(4, "limitado", TimeSpan.FromHours(1), new CollectingProgress(reports)));
 
         Assert.Equal(4, reports[^1].Completed);
@@ -208,7 +208,7 @@ public sealed class HotspotProvisioningServiceTests
     }
 
     /// <summary>Genera códigos consecutivos para poder predecir el resultado en las pruebas.</summary>
-    private sealed class SequentialCodes(int start) : IVoucherCodeGenerator
+    private sealed class SequentialCodes(int start) : ITicketCodeGenerator
     {
         private int _current = start - 1;
 
@@ -216,7 +216,7 @@ public sealed class HotspotProvisioningServiceTests
     }
 
     /// <summary>Devuelve una secuencia fija de códigos, para provocar colisiones a voluntad.</summary>
-    private sealed class ScriptedCodes(params string[] values) : IVoucherCodeGenerator
+    private sealed class ScriptedCodes(params string[] values) : ITicketCodeGenerator
     {
         private int _index;
 
@@ -224,7 +224,7 @@ public sealed class HotspotProvisioningServiceTests
     }
 
     /// <summary>Devuelve siempre el mismo código, para agotar los reintentos.</summary>
-    private sealed class FixedCodes(string value) : IVoucherCodeGenerator
+    private sealed class FixedCodes(string value) : ITicketCodeGenerator
     {
         public string Next() => value;
     }

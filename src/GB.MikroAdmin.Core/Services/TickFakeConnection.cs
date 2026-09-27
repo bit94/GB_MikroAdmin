@@ -4,7 +4,7 @@ namespace GB.MikroAdmin.Core.Services;
 
 /// <summary>
 /// Implementación en memoria para pruebas y demostraciones; no abre sockets.
-/// Simula el consumo de los vouchers con el tiempo real transcurrido desde su creación.
+/// Simula el consumo de los tickets con el tiempo real transcurrido desde su creación.
 /// </summary>
 public sealed class TickFakeConnection : IRouterTransport
 {
@@ -46,19 +46,19 @@ public sealed class TickFakeConnection : IRouterTransport
         return Task.CompletedTask;
     }
 
-    public Task AddProfileAsync(string name, string rateLimit, TimeSpan voucherDuration, CancellationToken cancellationToken)
+    public Task AddProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken)
     {
         if (_profiles.Any(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException($"El perfil «{name}» ya existe.");
 
-        _profiles.Add(new HotspotProfile(name, rateLimit, voucherDuration, 1));
+        _profiles.Add(new HotspotProfile(name, rateLimit, ticketDuration, 1));
         return Task.CompletedTask;
     }
 
-    public Task RemoveUserAsync(string name, CancellationToken cancellationToken)
+    public Task<int> RemoveUsersAsync(IReadOnlyList<string> names, CancellationToken cancellationToken)
     {
-        _users.RemoveAll(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-        return Task.CompletedTask;
+        var wanted = new HashSet<string>(names, StringComparer.OrdinalIgnoreCase);
+        return Task.FromResult(_users.RemoveAll(x => wanted.Contains(x.Name)));
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

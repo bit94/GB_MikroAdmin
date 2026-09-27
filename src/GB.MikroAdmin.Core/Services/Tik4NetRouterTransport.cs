@@ -37,44 +37,41 @@ public sealed class Tik4NetRouterTransport : IRouterTransport
         _session = await SessionFactory.OpenAsync(settings, cancellationToken);
     }
 
-    public Task<IReadOnlyList<RouterInterface>> InterfacesAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<RouterInterface>> InterfacesAsync(CancellationToken cancellationToken)
     {
-        var rows = Connected().List("/interface/print");
-        return Task.FromResult<IReadOnlyList<RouterInterface>>(
-            rows.Select(r => new RouterInterface(
-                r.GetString("name"),
-                r.GetBool("running"),
-                r.GetBool("disabled"),
-                r.GetString("type"))).ToList());
+        var rows = await Connected().ListAsync("/interface/print", cancellationToken);
+        return rows.Select(r => new RouterInterface(
+            r.GetString("name"),
+            r.GetBool("running"),
+            r.GetBool("disabled"),
+            r.GetString("type"))).ToList();
     }
 
-    public Task<IReadOnlyList<HotspotUser>> UsersAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<HotspotUser>> UsersAsync(CancellationToken cancellationToken)
     {
-        var rows = Connected().List("/ip/hotspot/user/print");
-        return Task.FromResult<IReadOnlyList<HotspotUser>>(
-            rows.Select(r =>
-            {
-                // Un limit-uptime ilegible lanza; es preferible a mostrar un voucher como ilimitado.
-                var limit = RouterOsTime.Parse(r.GetString("limit-uptime"));
-                var uptime = RouterOsTime.Parse(r.GetString("uptime")) ?? TimeSpan.Zero;
-                return new HotspotUser(
-                    r.GetString("name"),
-                    r.GetStringOrNull("profile") ?? "default",
-                    limit,
-                    uptime,
-                    uptime > TimeSpan.Zero);
-            }).ToList());
+        var rows = await Connected().ListAsync("/ip/hotspot/user/print", cancellationToken);
+        return rows.Select(r =>
+        {
+            // Un limit-uptime ilegible lanza; es preferible a mostrar un ticket como ilimitado.
+            var limit = RouterOsTime.Parse(r.GetString("limit-uptime"));
+            var uptime = RouterOsTime.Parse(r.GetString("uptime")) ?? TimeSpan.Zero;
+            return new HotspotUser(
+                r.GetString("name"),
+                r.GetStringOrNull("profile") ?? "default",
+                limit,
+                uptime,
+                uptime > TimeSpan.Zero);
+        }).ToList();
     }
 
-    public Task<IReadOnlyList<HotspotProfile>> ProfilesAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<HotspotProfile>> ProfilesAsync(CancellationToken cancellationToken)
     {
-        var rows = Connected().List("/ip/hotspot/user/profile/print");
-        return Task.FromResult<IReadOnlyList<HotspotProfile>>(
-            rows.Select(r => new HotspotProfile(
-                r.GetString("name"),
-                r.GetStringOrNull("rate-limit"),
-                ProfileMarker.ReadVoucherDuration(r.GetStringOrNull("comment")),
-                r.GetInt("shared-users", 1))).ToList());
+        var rows = await Connected().ListAsync("/ip/hotspot/user/profile/print", cancellationToken);
+        return rows.Select(r => new HotspotProfile(
+            r.GetString("name"),
+            r.GetStringOrNull("rate-limit"),
+            ProfileMarker.ReadTicketDuration(r.GetStringOrNull("comment")),
+            r.GetInt("shared-users", 1))).ToList();
     }
 
     public async Task AddUserAsync(string name, string password, string profile, TimeSpan limit, CancellationToken cancellationToken)
@@ -85,34 +82,42 @@ public sealed class Tik4NetRouterTransport : IRouterTransport
                 ["password"] = password,
                 ["profile"] = profile,
                 ["limit-uptime"] = RouterOsTime.ToRouterOs(limit)
-            });
+            }, cancellationToken);
 
-    public async Task AddProfileAsync(string name, string rateLimit, TimeSpan voucherDuration, CancellationToken cancellationToken)
+    public async Task AddProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken)
         => await Connected().ExecuteAsync("/ip/hotspot/user/profile/add",
             new Dictionary<string, string>
             {
                 ["name"] = name,
                 ["rate-limit"] = rateLimit,
                 ["shared-users"] = "1",
-                ["comment"] = ProfileMarker.Build(voucherDuration)
-            });
+                ["comment"] = ProfileMarker.Build(ticketDuration)
+            }, cancellationToken);
 
     /// <summary>
-    /// Elimina por <c>.id</c>. El parámetro <c>numbers</c> de RouterOS acepta índices o rangos,
-    /// no nombres, así que pasar el nombre hacía fallar el borrado contra un equipo real.
+    /// Elimina por <c>.id</c>, que es lo que acepta <c>numbers</c>: pasar nombres fallaba contra
+    /// un equipo real. Se lista una sola vez y se borra todo en una llamada con
+    /// <c>numbers=id1,id2,...</c>. Los nombres que ya no existen se ignoran: el estado deseado
+    /// (que no estén) ya se cumple. Devuelve cuántos se borraron.
     /// </summary>
-    public async Task RemoveUserAsync(string name, CancellationToken cancellationToken)
+    public async Task<int> RemoveUsersAsync(IReadOnlyList<string> names, CancellationToken cancellationToken)
     {
+        if (names.Count == 0)
+            return 0;
+
+        var wanted = new HashSet<string>(names, StringComparer.OrdinalIgnoreCase);
         var session = Connected();
-        var id = session.List("/ip/hotspot/user/print")
-            .Select(r => (Id: r.GetString(".id"), Name: r.GetString("name")))
-            .FirstOrDefault(r => r.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
-            .Id;
+        var ids = (await session.ListAsync("/ip/hotspot/user/print", cancellationToken))
+            .Where(r => wanted.Contains(r.GetString("name")))
+            .Select(r => r.GetString(".id"))
+            .ToList();
 
-        if (string.IsNullOrEmpty(id))
-            throw new InvalidOperationException($"El usuario «{name}» ya no existe en el router.");
+        if (ids.Count == 0)
+            return 0;
 
-        await session.ExecuteAsync("/ip/hotspot/user/remove", new Dictionary<string, string> { [".id"] = id });
+        await session.ExecuteAsync("/ip/hotspot/user/remove",
+            new Dictionary<string, string> { ["numbers"] = string.Join(",", ids) }, cancellationToken);
+        return ids.Count;
     }
 
     private ITikSession Connected()
@@ -140,8 +145,8 @@ public interface ITikRow
 
 public interface ITikSession : IAsyncDisposable
 {
-    IReadOnlyList<ITikRow> List(string command);
-    Task ExecuteAsync(string command, IReadOnlyDictionary<string, string> parameters);
+    Task<IReadOnlyList<ITikRow>> ListAsync(string command, CancellationToken cancellationToken);
+    Task ExecuteAsync(string command, IReadOnlyDictionary<string, string> parameters, CancellationToken cancellationToken);
 }
 
 public interface ITikSessionFactory

@@ -2,11 +2,11 @@ using GB.MikroAdmin.ViewModels;
 
 namespace GB.MikroAdmin.Views;
 
-public partial class VoucherHistoryPage : ContentPage
+public partial class TicketHistoryPage : ContentPage
 {
-    private readonly VoucherHistoryViewModel _viewModel;
+    private readonly TicketHistoryViewModel _viewModel;
 
-    public VoucherHistoryPage(VoucherHistoryViewModel viewModel)
+    public TicketHistoryPage(TicketHistoryViewModel viewModel)
     {
         InitializeComponent();
         BindingContext = _viewModel = viewModel;

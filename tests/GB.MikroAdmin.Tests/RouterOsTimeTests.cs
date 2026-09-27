@@ -44,7 +44,7 @@ public sealed class RouterOsTimeTests
 
     /// <summary>
     /// Antes un carácter desconocido devolvía cero en silencio, con lo que un límite ilegible
-    /// hacía que el voucher pareciera ilimitado. Ahora falla de forma explícita.
+    /// hacía que el ticket pareciera ilimitado. Ahora falla de forma explícita.
     /// </summary>
     [Theory]
     [InlineData("1h30x")]

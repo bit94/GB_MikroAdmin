@@ -27,7 +27,7 @@ public partial class UsersPage : ContentPage
     }
 
     /// <summary>
-    /// Refresca sola cada 30 s. El tiempo restante de un voucher cambia constantemente y antes
+    /// Refresca sola cada 30 s. El tiempo restante de un ticket cambia constantemente y antes
     /// solo se actualizaba al pulsar "Actualizar", así que la pantalla quedaba desactualizada.
     /// </summary>
     private void StartAutoRefresh()

@@ -4,8 +4,8 @@ public record RouterSettings(string Host, int Port, string UserName, string Pass
 
 public record RouterInterface(string Name, bool Running, bool Disabled, string Type);
 
-/// <summary>Estado de consumo de un voucher, derivado del tiempo consumido frente al límite.</summary>
-public enum VoucherState
+/// <summary>Estado de consumo de un ticket, derivado del tiempo consumido frente al límite.</summary>
+public enum TicketState
 {
     /// <summary>Sin límite de tiempo configurado: el consumo no determina su estado.</summary>
     Unlimited,
@@ -28,15 +28,15 @@ public record HotspotUser(string Name, string Profile, TimeSpan? LimitUptime, Ti
         ? Math.Clamp(Uptime.TotalMilliseconds / limit.TotalMilliseconds * 100, 0, 100)
         : 0;
 
-    public VoucherState State => LimitUptime is null
-        ? VoucherState.Unlimited
-        : IsExpired ? VoucherState.Expired
-        : Uptime > TimeSpan.Zero ? VoucherState.InUse
-        : VoucherState.Available;
+    public TicketState State => LimitUptime is null
+        ? TicketState.Unlimited
+        : IsExpired ? TicketState.Expired
+        : Uptime > TimeSpan.Zero ? TicketState.InUse
+        : TicketState.Available;
 }
 
 public record HotspotProfile(
     string Name,
     string? RateLimit,
-    TimeSpan? VoucherDuration,
+    TimeSpan? TicketDuration,
     int SharedUsers);

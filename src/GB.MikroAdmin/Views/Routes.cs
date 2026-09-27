@@ -37,11 +37,11 @@ public static class ShellMenu
     public static IReadOnlyList<Entry> Sections { get; } =
     [
         new("Inicio", "home", typeof(MainMenuPage)),
-        new("Vouchers", "users", typeof(UsersPage)),
+        new("Tickets", "users", typeof(UsersPage)),
         new("Generar", "generate", typeof(GeneratePage)),
         new("Perfiles", "profiles", typeof(ProfilesPage)),
         new("Interfaces", "interfaces", typeof(InterfacesPage)),
-        new("Histórico", "history", typeof(VoucherHistoryPage)),
+        new("Histórico", "history", typeof(TicketHistoryPage)),
     ];
 
     /// <summary>Todas las páginas que el shell necesita resolver, para registrarlas de una vez.</summary>

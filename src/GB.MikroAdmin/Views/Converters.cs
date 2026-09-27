@@ -4,18 +4,18 @@ using GB.MikroAdmin.Core.Models;
 namespace GB.MikroAdmin.Views;
 
 /// <summary>
-/// Traduce el estado del voucher a texto y color. Se centraliza aquí para que la semántica
+/// Traduce el estado del ticket a texto y color. Se centraliza aquí para que la semántica
 /// (verde disponible, ámbar en uso, rojo agotado) sea idéntica en todas las listas.
 /// </summary>
-public sealed class VoucherStateTextConverter : IValueConverter
+public sealed class TicketStateTextConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => value is VoucherState state
+        => value is TicketState state
             ? state switch
             {
-                VoucherState.Available => "Sin usar",
-                VoucherState.InUse => "En uso",
-                VoucherState.Expired => "Agotado",
+                TicketState.Available => "Sin usar",
+                TicketState.InUse => "En uso",
+                TicketState.Expired => "Agotado",
                 _ => "Sin límite"
             }
             : string.Empty;
@@ -24,16 +24,16 @@ public sealed class VoucherStateTextConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
-public sealed class VoucherStateColorConverter : IValueConverter
+public sealed class TicketStateColorConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        var color = value is VoucherState state
+        var color = value is TicketState state
             ? state switch
             {
-                VoucherState.Available => Color.FromArgb("#22C55E"),
-                VoucherState.InUse => Color.FromArgb("#F59E0B"),
-                VoucherState.Expired => Color.FromArgb("#EF4444"),
+                TicketState.Available => Color.FromArgb("#22C55E"),
+                TicketState.InUse => Color.FromArgb("#F59E0B"),
+                TicketState.Expired => Color.FromArgb("#EF4444"),
                 _ => Color.FromArgb("#64748B")
             }
             : Color.FromArgb("#64748B");

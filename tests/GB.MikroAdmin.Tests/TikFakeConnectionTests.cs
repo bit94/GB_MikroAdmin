@@ -18,21 +18,25 @@ public sealed class TickFakeConnectionTests
     }
 
     [Fact]
-    public async Task RemoveUser_removes_the_selected_account()
+    public async Task RemoveUsers_removes_the_selected_account()
     {
         await using var router = new TickFakeConnection();
         await router.AddUserAsync("cliente-2", "secret", "limitado", TimeSpan.FromHours(1), CancellationToken.None);
-        await router.RemoveUserAsync("cliente-2", CancellationToken.None);
 
+        var removed = await router.RemoveUsersAsync(["cliente-2"], CancellationToken.None);
+
+        Assert.Equal(1, removed);
         Assert.DoesNotContain(await router.UsersAsync(CancellationToken.None), x => x.Name == "cliente-2");
     }
 
     [Fact]
-    public async Task RemoveUser_is_idempotent_on_the_simulator()
+    public async Task RemoveUsers_is_idempotent_on_the_simulator()
     {
         await using var router = new TickFakeConnection();
-        await router.RemoveUserAsync("no-existe", CancellationToken.None);
 
+        var removed = await router.RemoveUsersAsync(["no-existe"], CancellationToken.None);
+
+        Assert.Equal(0, removed);
         Assert.Equal(0, router.UserCount);
     }
 

@@ -68,3 +68,45 @@ public sealed class AsyncCommand : ICommand
 
     private void Raise() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
 }
+
+/// <summary>
+/// Variante con parámetro (el elemento de la fila, por ejemplo). Mismas garantías que
+/// <see cref="AsyncCommand"/>: se deshabilita mientras se ejecuta y expone el fallo en lugar
+/// de dejarlo escapar.
+/// </summary>
+public sealed class AsyncCommand<T> : ICommand
+{
+    private readonly Func<T?, Task> _execute;
+    private bool _busy;
+
+    public AsyncCommand(Func<T?, Task> execute) => _execute = execute;
+
+    public event EventHandler? CanExecuteChanged;
+
+    /// <summary>Se dispara cuando la tarea del comando termina en excepción no controlada.</summary>
+    public event EventHandler<Exception>? ExecutionFailed;
+
+    public bool CanExecute(object? parameter) => !_busy && parameter is T;
+
+    public async void Execute(object? parameter)
+    {
+        if (_busy || parameter is not T value)
+            return;
+
+        _busy = true;
+        CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+        try
+        {
+            await _execute(value);
+        }
+        catch (Exception exception)
+        {
+            ExecutionFailed?.Invoke(this, exception);
+        }
+        finally
+        {
+            _busy = false;
+            CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+}

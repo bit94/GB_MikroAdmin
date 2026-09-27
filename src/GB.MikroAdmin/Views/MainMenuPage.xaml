@@ -6,7 +6,7 @@
   <ScrollView>
     <VerticalStackLayout Padding="16" Spacing="10">
       <Label Text="MikroAdmin" FontAttributes="Bold" FontSize="28" />
-      <Label Text="Administración de vouchers de internet por tiempo." Style="{StaticResource Caption}" />
+      <Label Text="Administración de tickets de internet por tiempo." Style="{StaticResource Caption}" />
 
       <Border Style="{StaticResource Card}" BackgroundColor="{StaticResource SurfaceAlt}">
         <Grid ColumnDefinitions="*,Auto">
@@ -19,8 +19,8 @@
       </Border>
 
       <Label Text="Operación diaria" Style="{StaticResource SectionTitle}" />
-      <Button Text="Vouchers activos" Command="{Binding GoToUsersCommand}" HeightRequest="58" />
-      <Button Text="Generar vouchers" Command="{Binding GoToGenerateCommand}" HeightRequest="58" />
+      <Button Text="Tickets activos" Command="{Binding GoToUsersCommand}" HeightRequest="58" />
+      <Button Text="Generar tickets" Command="{Binding GoToGenerateCommand}" HeightRequest="58" />
       <Button Text="Histórico de lotes" Command="{Binding GoToHistoryCommand}" HeightRequest="58" />
 
       <Label Text="Configuración del router" Style="{StaticResource SectionTitle}" />

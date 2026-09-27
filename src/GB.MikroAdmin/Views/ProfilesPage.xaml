@@ -21,19 +21,19 @@
       <Label Text="Nuevo perfil" Style="{StaticResource SectionTitle}" />
       <Entry Placeholder="Nombre del perfil" Text="{Binding NewProfileName}" />
       <Entry Placeholder="Límite de velocidad, ej. 2M/2M" Text="{Binding RateLimit}" />
-      <Entry Placeholder="Duración del voucher: HH:MM:SS o 7d, 12h, 90m" Text="{Binding VoucherDuration}" />
+      <Entry Placeholder="Duración del ticket: HH:MM:SS o 7d, 12h, 90m" Text="{Binding TicketDuration}" />
       <Label Text="La duración se guarda en el comentario del perfil, porque RouterOS no tiene un campo propio para ella."
              Style="{StaticResource Caption}" />
       <Button Text="Crear perfil" Command="{Binding AddProfileCommand}" />
 
-      <CollectionView ItemsSource="{Binding Notices}" HeightRequest="72">
-        <CollectionView.ItemTemplate>
+      <VerticalStackLayout BindableLayout.ItemsSource="{Binding Notices}">
+        <BindableLayout.ItemTemplate>
           <DataTemplate>
             <Label Text="{Binding Text}" FontSize="13"
                    TextColor="{Binding Severity, Converter={StaticResource NoticeColor}}" />
           </DataTemplate>
-        </CollectionView.ItemTemplate>
-      </CollectionView>
+        </BindableLayout.ItemTemplate>
+      </VerticalStackLayout>
 
       <Label Text="Perfiles disponibles" Style="{StaticResource SectionTitle}" />
       <Button Text="Actualizar" Command="{Binding RefreshCommand}" Padding="14,6" HorizontalOptions="Start" />
@@ -52,7 +52,7 @@
                 <Label Text="{Binding RateLimit, StringFormat='Velocidad: {0}'}" Style="{StaticResource Caption}" />
               </VerticalStackLayout>
               <VerticalStackLayout Grid.Column="1" Spacing="1" HorizontalOptions="End">
-                <Label Text="{Binding VoucherDuration, StringFormat='Voucher: {0:g}'}" />
+                <Label Text="{Binding TicketDuration, StringFormat='Ticket: {0:g}'}" />
                 <Label Text="{Binding SharedUsers, StringFormat='Usuarios: {0}'}" Style="{StaticResource Caption}" HorizontalOptions="End" />
               </VerticalStackLayout>
             </Grid>

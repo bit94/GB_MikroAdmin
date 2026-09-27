@@ -1,6 +1,6 @@
 # Hoja de ruta
 
-Objetivo: administrar vouchers de internet por tiempo de forma óptima, sencilla y rápida, con el
+Objetivo: administrar tickets de internet por tiempo de forma óptima, sencilla y rápida, con el
 foco principal en la **administración diaria del router**.
 
 Leyenda: `[x]` hecho · `[ ]` pendiente
@@ -26,13 +26,13 @@ Leyenda: `[x]` hecho · `[ ]` pendiente
 - [ ] **Probar contra un router real** (api-ssl, puerto 8729, certificado de confianza).
       Pendiente: hoy solo hay modo simulado.
 
-## Fase 2 — Vouchers de verdad
+## Fase 2 — Tickets de verdad
 
 - [x] Reintento ante colisión de códigos
 - [x] Lote parcial que no pierde los códigos ya creados
 - [x] Histórico local de lotes generados
 - [x] Exportar el lote a CSV
-- [x] PDF imprimible de vouchers (código, perfil, duración, fecha)
+- [x] PDF imprimible de tickets (código, perfil, duración, fecha)
 - [x] Compartir el lote desde el móvil
 - [x] Cancelación y progreso real durante la creación de un lote largo
 - [ ] Recordar la última cantidad y el último perfil usados al abrir la aplicación
@@ -43,11 +43,11 @@ Leyenda: `[x]` hecho · `[ ]` pendiente
 - [x] Refresco automático del tiempo restante cada 30 s
 - [x] Indicador de router conectado y botón de desconexión
 - [x] Avisos con severidad
-- [ ] Suspender o reactivar un voucher sin borrarlo
-- [ ] Extender el tiempo de un voucher existente
-- [ ] Añadir tiempo en bloque a los vouchers de un perfil
+- [ ] Suspender o reactivar un ticket sin borrarlo
+- [ ] Extender el tiempo de un ticket existente
+- [ ] Añadir tiempo en bloque a los tickets de un perfil
 - [ ] Buscar por rango de fechas de creación
-- [ ] Ordenar la lista de vouchers por columna (código, perfil, restante)
+- [ ] Ordenar la lista de tickets por columna (código, perfil, restante)
 
 ## Fase 4 — Control del proyecto
 
@@ -61,8 +61,8 @@ Leyenda: `[x]` hecho · `[ ]` pendiente
 
 - [ ] Portal cautivo para que el cliente vea su tiempo restante
 - [ ] Varios perfiles de conexión guardados (varios routers o varios negocios)
-- [ ] Alertas cuando un voucher esté por agotarse
-- [ ] Registro de auditoría: quién creó y quién eliminó cada voucher
+- [ ] Alertas cuando un ticket esté por agotarse
+- [ ] Registro de auditoría: quién creó y quién eliminó cada ticket
 
 ---
 
@@ -90,9 +90,9 @@ dotnet build GB.MikroAdmin.sln -f net10.0-windows10.0.19041.0
 dotnet test tests/GB.MikroAdmin.Tests/GB.MikroAdmin.Tests.csproj
 ```
 
-### Duración de los vouchers
+### Duración de los tickets
 
-RouterOS no tiene un campo de "duración del voucher" en los perfiles de Hotspot, así que
+RouterOS no tiene un campo de "duración del ticket" en los perfiles de Hotspot, así que
 GB.MikroAdmin la guarda en el comentario del perfil con el marcador
 `GBM:voucher-duration=<duración>`. Si editas el comentario a mano, conserva ese marcador o el
 perfil dejará de tener duración y no se podrán crear lotes con él.

@@ -68,6 +68,6 @@ public sealed class MauiFileExporter : IFileExporter
     {
         var invalid = Path.GetInvalidFileNameChars();
         var cleaned = new string(fileName.Select(c => invalid.Contains(c) ? '-' : c).ToArray());
-        return string.IsNullOrWhiteSpace(cleaned) ? "vouchers" : cleaned;
+        return string.IsNullOrWhiteSpace(cleaned) ? "tickets" : cleaned;
     }
 }

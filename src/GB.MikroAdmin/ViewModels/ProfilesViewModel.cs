@@ -11,25 +11,23 @@ public sealed class ProfilesViewModel : PageViewModel
     private readonly IRouterService _router;
     private string _newProfileName = string.Empty;
     private string _rateLimit = "2M/2M";
-    private string _voucherDuration = "01:00:00";
+    private string _ticketDuration = "01:00:00";
 
     public ProfilesViewModel(IRouterService router, ConnectionState connection) : base(connection)
     {
         _router = router;
         RefreshCommand = new AsyncCommand(RefreshAsync);
         AddProfileCommand = new AsyncCommand(AddProfileAsync);
-        DeleteProfileCommand = new AsyncCommand(DeleteProfileAsync);
     }
 
     public ObservableCollection<HotspotProfile> Profiles { get; } = [];
 
     public string NewProfileName { get => _newProfileName; set => Set(ref _newProfileName, value); }
     public string RateLimit { get => _rateLimit; set => Set(ref _rateLimit, value); }
-    public string VoucherDuration { get => _voucherDuration; set => Set(ref _voucherDuration, value); }
+    public string TicketDuration { get => _ticketDuration; set => Set(ref _ticketDuration, value); }
 
     public ICommand RefreshCommand { get; }
     public ICommand AddProfileCommand { get; }
-    public ICommand DeleteProfileCommand { get; }
 
     public Task RefreshAsync() => RunAsync(async () =>
     {
@@ -52,25 +50,12 @@ public sealed class ProfilesViewModel : PageViewModel
         if (Profiles.Any(p => p.Name.Equals(NewProfileName.Trim(), StringComparison.OrdinalIgnoreCase)))
             throw new ArgumentException($"Ya existe un perfil llamado «{NewProfileName.Trim()}».");
 
-        var duration = DurationInput.Parse(VoucherDuration);
+        var duration = DurationInput.Parse(TicketDuration);
         await _router.AddProfileAsync(NewProfileName.Trim(), RateLimit.Trim(), duration);
 
-        Success($"Perfil «{NewProfileName.Trim()}» creado con {VoucherBatchExport.Humanize(duration)} de voucher.");
+        Success($"Perfil «{NewProfileName.Trim()}» creado con {TicketBatchExport.Humanize(duration)} de ticket.");
         NewProfileName = string.Empty;
         await RefreshAsync();
-    });
-
-    private Task DeleteProfileAsync() => RunAsync(async () =>
-    {
-        // Se elimina de la vista solo si el router lo confirma; de lo contrario la lista mentiría.
-        foreach (var profile in Profiles.ToList())
-        {
-            if (profile.Name is "default")
-                continue;
-        }
-
-        await RefreshAsync();
-        Info("La eliminación de perfiles aún no está habilitada; requiere confirmación aparte.");
     });
 }
 
@@ -83,7 +68,7 @@ public static class DurationInput
     public static TimeSpan Parse(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("Indica la duración del voucher.");
+            throw new ArgumentException("Indica la duración del ticket.");
 
         var text = value.Trim();
 

@@ -33,12 +33,12 @@ public sealed class HotspotUserTests
     }
 
     [Theory]
-    [InlineData(null, 0, VoucherState.Unlimited)]
-    [InlineData(60, 0, VoucherState.Available)]
-    [InlineData(60, 30, VoucherState.InUse)]
-    [InlineData(60, 60, VoucherState.Expired)]
-    [InlineData(60, 90, VoucherState.Expired)]
-    public void State_reflects_consumption(int? limitMinutes, int uptimeMinutes, VoucherState expected)
+    [InlineData(null, 0, TicketState.Unlimited)]
+    [InlineData(60, 0, TicketState.Available)]
+    [InlineData(60, 30, TicketState.InUse)]
+    [InlineData(60, 60, TicketState.Expired)]
+    [InlineData(60, 90, TicketState.Expired)]
+    public void State_reflects_consumption(int? limitMinutes, int uptimeMinutes, TicketState expected)
     {
         TimeSpan? limit = limitMinutes is null ? null : TimeSpan.FromMinutes(limitMinutes.Value);
         var user = new HotspotUser("a", "p", limit, TimeSpan.FromMinutes(uptimeMinutes), true);

@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:GB.MikroAdmin.Views"
              x:Class="GB.MikroAdmin.Views.GeneratePage"
-             Title="Generar vouchers">
+             Title="Generar tickets">
 
   <ContentPage.Resources>
     <views:NoticeColorConverter x:Key="NoticeColor" />
@@ -20,17 +20,26 @@
       </Border>
 
       <Label Text="Nuevo lote" Style="{StaticResource SectionTitle}" />
-      <Label Text="Cada voucher usa el mismo código como usuario y contraseña, para poder entregarlo con un solo dato."
+      <Label Text="Cada ticket usa el mismo código como usuario y contraseña, para poder entregarlo con un solo dato."
              Style="{StaticResource Caption}" />
 
       <Picker Title="Perfil" ItemsSource="{Binding Profiles}" ItemDisplayBinding="{Binding Name}" SelectedItem="{Binding SelectedProfile}" />
-      <Label Text="{Binding SelectedProfile.VoucherDuration, StringFormat='Duración por voucher: {0:g}'}"
+      <Label Text="{Binding SelectedProfile.TicketDuration, StringFormat='Duración por ticket: {0:g}'}"
              Style="{StaticResource Caption}" />
 
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
         <Entry Placeholder="Cantidad (1 a 100)" Keyboard="Numeric" Text="{Binding BatchQuantity}" />
         <Button Grid.Column="1" Text="Generar" Command="{Binding CreateBatchCommand}"
                 IsEnabled="{Binding IsGenerating, Converter={StaticResource Invert}}" Padding="18,6" />
+      </Grid>
+
+      <!-- Datos que se imprimen en la tarjeta; todos opcionales y se guardan con el lote. -->
+      <Label Text="Datos para la tarjeta (opcionales)" Style="{StaticResource Caption}" Margin="0,2,0,0" />
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="8">
+        <Entry Placeholder="Marca (ej. NextGen)" Text="{Binding TicketBrand}" />
+        <Entry Grid.Column="1" Placeholder="Wi-Fi (ej. GB_nextGen_PA01)" Text="{Binding TicketSsid}" />
+        <Entry Grid.Row="1" Placeholder="Precio (ej. 15)" Keyboard="Numeric" Text="{Binding TicketPrice}" />
+        <Entry Grid.Row="1" Grid.Column="1" Placeholder="Consulta de estado (ej. gbnextgen.mx)" Keyboard="Url" Text="{Binding TicketStatusUrl}" />
       </Grid>
 
       <!-- Progreso y cancelación: un lote de 100 tarda minutos y antes no había forma de pararlo. -->
@@ -43,25 +52,26 @@
         </Grid>
       </VerticalStackLayout>
 
-      <!-- Los avisos se muestran junto a la acción y sobreviven a la siguiente operación. -->
-      <CollectionView ItemsSource="{Binding Notices}" HeightRequest="72">
-        <CollectionView.ItemTemplate>
+      <!-- Los avisos se muestran junto a la acción y sobreviven a la siguiente operación.
+           BindableLayout en vez de CollectionView: con altura fija el texto largo quedaba cortado. -->
+      <VerticalStackLayout BindableLayout.ItemsSource="{Binding Notices}">
+        <BindableLayout.ItemTemplate>
           <DataTemplate>
             <Label Text="{Binding Text}" FontSize="13"
                    TextColor="{Binding Severity, Converter={StaticResource NoticeColor}}" />
           </DataTemplate>
-        </CollectionView.ItemTemplate>
-      </CollectionView>
+        </BindableLayout.ItemTemplate>
+      </VerticalStackLayout>
 
       <Label Text="Códigos generados" Style="{StaticResource SectionTitle}" />
       <Label Text="Se guardan en el histórico, así que puedes cerrar la aplicación y recuperarlos después."
              Style="{StaticResource Caption}" />
 
-      <CollectionView ItemsSource="{Binding Generated}" HeightRequest="240">
-        <CollectionView.EmptyView>
-          <Label Text="Aún no has generado vouchers." Style="{StaticResource Caption}" Margin="0,20" HorizontalOptions="Center" />
-        </CollectionView.EmptyView>
-        <CollectionView.ItemTemplate>
+      <VerticalStackLayout BindableLayout.ItemsSource="{Binding Generated}">
+        <BindableLayout.EmptyView>
+          <Label Text="Aún no has generado tickets." Style="{StaticResource Caption}" Margin="0,20" HorizontalOptions="Center" />
+        </BindableLayout.EmptyView>
+        <BindableLayout.ItemTemplate>
           <DataTemplate>
             <Border Style="{StaticResource Card}" Margin="0,0,0,4" Padding="10">
               <Grid ColumnDefinitions="*,Auto">
@@ -70,16 +80,17 @@
               </Grid>
             </Border>
           </DataTemplate>
-        </CollectionView.ItemTemplate>
-      </CollectionView>
+        </BindableLayout.ItemTemplate>
+      </VerticalStackLayout>
 
       <Label Text="Entregar" Style="{StaticResource SectionTitle}" />
-      <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+      <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
         <Button Text="CSV" Command="{Binding ExportCsvCommand}" IsEnabled="{Binding CanExport}" Padding="8,6" />
         <Button Grid.Column="1" Text="Imprimir" Command="{Binding PrintCommand}" IsEnabled="{Binding CanExport}" Padding="8,6" />
-        <Button Grid.Column="2" Text="Compartir" Command="{Binding ShareCommand}" IsEnabled="{Binding CanExport}" Padding="8,6" />
+        <Button Grid.Column="2" Text="PDF" Command="{Binding ShareCommand}" IsEnabled="{Binding CanExport}" Padding="8,6" />
+        <Button Grid.Column="3" Text="HTML" Command="{Binding ShareHtmlCommand}" IsEnabled="{Binding CanExport}" Padding="8,6" />
       </Grid>
-      <Label Text="CSV para Excel. Imprimir genera tarjetas recortables con el código en grande."
+      <Label Text="CSV para Excel. Imprimir genera tarjetas con QR de conexión Wi-Fi, 30 por hoja carta; en el histórico también puedes imprimir de uno en uno para térmica. HTML es un archivo editable que reimprimes desde el navegador."
              Style="{StaticResource Caption}" />
 
       <Button Text="Limpiar códigos en pantalla" Command="{Binding ClearGeneratedCommand}" Style="{StaticResource Caption}" />

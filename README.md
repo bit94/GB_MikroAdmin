@@ -1,6 +1,6 @@
 # GB.MikroAdmin
 
-Aplicación .NET MAUI con MVVM para administrar vouchers de internet por tiempo en un MikroTik
+Aplicación .NET MAUI con MVVM para administrar tickets de internet por tiempo en un MikroTik
 vía API. Incluye un **modo simulado** para trabajar en la interfaz sin router y un adaptador
 `tik4net` centralizado.
 
@@ -36,7 +36,7 @@ dotnet test tests/GB.MikroAdmin.Tests/GB.MikroAdmin.Tests.csproj
 
 Active **Modo simulado** en la pantalla de conexión para probar altas, bajas, perfiles e
 interfaces sin tocar ningún equipo. El simulador calcula el consumo con el reloj real, así que el
-tiempo restante de los vouchers avanza de verdad.
+tiempo restante de los tickets avanza de verdad.
 
 En modo real, el alta se traduce a `/ip/hotspot/user/add` con `name`, `password`, `profile` y
 `limit-uptime`, equivalente a:
@@ -45,7 +45,7 @@ En modo real, el alta se traduce a `/ip/hotspot/user/add` con `name`, `password`
 /ip hotspot user add name=123456 password=123456 profile=limitado limit-uptime=1h
 ```
 
-## Duración de los vouchers
+## Duración de los tickets
 
 RouterOS no tiene un campo de duración en los perfiles de Hotspot, así que GB.MikroAdmin la guarda
 en el comentario del perfil con el marcador `GBM:voucher-duration=<duración>`. Al crear un perfil

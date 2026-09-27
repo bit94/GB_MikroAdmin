@@ -27,9 +27,9 @@ public static class MauiProgram
 
         builder.Services.AddSingleton<IRouterService, RouterService>();
         builder.Services.AddSingleton<IRouterUserWriter>(sp => (RouterService)sp.GetRequiredService<IRouterService>());
-        builder.Services.AddSingleton<IVoucherCodeGenerator, NumericVoucherCodeGenerator>();
+        builder.Services.AddSingleton<ITicketCodeGenerator, NumericTicketCodeGenerator>();
         builder.Services.AddSingleton<IHotspotProvisioningService, HotspotProvisioningService>();
-        builder.Services.AddSingleton<IVoucherHistoryStore, VoucherHistoryStore>();
+        builder.Services.AddSingleton<ITicketHistoryStore, TicketHistoryStore>();
         builder.Services.AddSingleton<IFileExporter, MauiFileExporter>();
 
         // --- Estado compartido -------------------------------------------------------------
@@ -44,7 +44,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<UsersViewModel>();
         builder.Services.AddSingleton<ProfilesViewModel>();
         builder.Services.AddSingleton<InterfacesViewModel>();
-        builder.Services.AddSingleton<VoucherHistoryViewModel>();
+        builder.Services.AddSingleton<TicketHistoryViewModel>();
 
         // --- Páginas -----------------------------------------------------------------------
         // Se registran a partir de ShellMenu, la misma lista que usa AppShell para construir el

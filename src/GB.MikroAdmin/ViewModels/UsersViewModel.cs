@@ -7,23 +7,24 @@ using GB.MikroAdmin.Services;
 namespace GB.MikroAdmin.ViewModels;
 
 /// <summary>
-/// Administración diaria de vouchers: ver quién está conectado, cuánto tiempo lleva y cortar
+/// Administración diaria de tickets: ver quién está conectado, cuánto tiempo lleva y cortar
 /// a quien se pasó. La lista se refresca sola para no depender de pulsar "Actualizar".
 /// </summary>
 public sealed class UsersViewModel : PageViewModel
 {
     private readonly IRouterService _router;
     private readonly IHotspotProvisioningService _provisioning;
-    private readonly IVoucherHistoryStore _history;
+    private readonly ITicketHistoryStore _history;
     private readonly IFileExporter _exporter;
 
     private string _filter = string.Empty;
     private string _batchQuantity = "10";
+    private string _ticketBrand = string.Empty;
+    private string _ticketSsid = string.Empty;
+    private string _ticketPrice = string.Empty;
+    private string _ticketStatusUrl = string.Empty;
     private HotspotUser? _selectedUser;
     private HotspotProfile? _selectedProfile;
-    private string _newProfileName = string.Empty;
-    private string _rateLimit = "2M/2M";
-    private string _voucherDuration = "01:00:00";
     private bool _onlyExpired;
     private string _progressText = string.Empty;
     private double _progressPercent;
@@ -33,7 +34,7 @@ public sealed class UsersViewModel : PageViewModel
     public UsersViewModel(
         IRouterService router,
         IHotspotProvisioningService provisioning,
-        IVoucherHistoryStore history,
+        ITicketHistoryStore history,
         IFileExporter exporter,
         ConnectionState connection) : base(connection)
     {
@@ -52,6 +53,7 @@ public sealed class UsersViewModel : PageViewModel
         ExportCsvCommand = new AsyncCommand(ExportCsvAsync);
         PrintCommand = new AsyncCommand(PrintAsync);
         ShareCommand = new AsyncCommand(ShareAsync);
+        ShareHtmlCommand = new AsyncCommand(ShareHtmlAsync);
     }
 
     public ObservableCollection<HotspotUser> Users { get; } = [];
@@ -103,11 +105,15 @@ public sealed class UsersViewModel : PageViewModel
     }
 
     public string BatchQuantity { get => _batchQuantity; set => Set(ref _batchQuantity, value); }
+
+    /// <summary>Datos opcionales que se imprimen en la tarjeta; se preguntan aquí y viajan con el lote.</summary>
+    public string TicketBrand { get => _ticketBrand; set => Set(ref _ticketBrand, value); }
+    public string TicketSsid { get => _ticketSsid; set => Set(ref _ticketSsid, value); }
+    public string TicketPrice { get => _ticketPrice; set => Set(ref _ticketPrice, value); }
+    public string TicketStatusUrl { get => _ticketStatusUrl; set => Set(ref _ticketStatusUrl, value); }
+
     public HotspotUser? SelectedUser { get => _selectedUser; set => Set(ref _selectedUser, value); }
     public HotspotProfile? SelectedProfile { get => _selectedProfile; set => Set(ref _selectedProfile, value); }
-    public string NewProfileName { get => _newProfileName; set => Set(ref _newProfileName, value); }
-    public string RateLimit { get => _rateLimit; set => Set(ref _rateLimit, value); }
-    public string VoucherDuration { get => _voucherDuration; set => Set(ref _voucherDuration, value); }
 
     public ICommand RefreshCommand { get; }
     public ICommand CreateBatchCommand { get; }
@@ -119,6 +125,7 @@ public sealed class UsersViewModel : PageViewModel
     public ICommand ExportCsvCommand { get; }
     public ICommand PrintCommand { get; }
     public ICommand ShareCommand { get; }
+    public ICommand ShareHtmlCommand { get; }
 
     public Task RefreshAsync() => RunAsync(async () =>
     {
@@ -160,15 +167,15 @@ public sealed class UsersViewModel : PageViewModel
                 throw new ArgumentException("La cantidad debe ser un número.");
 
             var profile = SelectedProfile
-                ?? throw new ArgumentException("Selecciona el perfil que usarán los vouchers.");
-            var duration = profile.VoucherDuration
-                ?? throw new ArgumentException($"El perfil «{profile.Name}» no tiene duración de voucher. " +
+                ?? throw new ArgumentException("Selecciona el perfil que usarán los tickets.");
+            var duration = profile.TicketDuration
+                ?? throw new ArgumentException($"El perfil «{profile.Name}» no tiene duración de ticket. " +
                                                "Créalo de nuevo indicando la duración, o usa otro perfil.");
 
             Generated.Clear();
             Raise(nameof(CanExport));
             ProgressPercent = 0;
-            ProgressText = $"Preparando {count} vouchers…";
+            ProgressText = $"Preparando {count} tickets…";
 
             _batchCancellation?.Dispose();
             _batchCancellation = new CancellationTokenSource();
@@ -186,23 +193,23 @@ public sealed class UsersViewModel : PageViewModel
                 var created = await _provisioning.CreateBatchAsync(
                     count, profile.Name, duration, progress, _batchCancellation.Token);
 
-                foreach (var voucher in created)
-                    Generated.Add(voucher);
+                foreach (var ticket in created)
+                    Generated.Add(ticket);
 
-                await _history.SaveAsync(new VoucherBatchExport(DateTimeOffset.Now, profile.Name, duration, created));
-                Success($"Se crearon {created.Count} vouchers de {VoucherBatchExport.Humanize(duration)}. " +
+                await _history.SaveAsync(BuildBatch(profile.Name, duration, created));
+                Success($"Se crearon {created.Count} tickets de {TicketBatchExport.Humanize(duration)}. " +
                         "Puedes exportarlos o imprimirlos.");
             }
             catch (OperationCanceledException)
             {
                 // Lo que ya se creó antes de cancelar sigue siendo válido: se guarda igual.
                 await PersistPartialAsync(profile.Name, duration);
-                Warn($"Lote cancelado. Se conservaron {Generated.Count} vouchers ya creados.");
+                Warn($"Lote cancelado. Se conservaron {Generated.Count} tickets ya creados.");
             }
-            catch (VoucherBatchException partial)
+            catch (TicketBatchException partial)
             {
-                foreach (var voucher in partial.Created)
-                    Generated.Add(voucher);
+                foreach (var ticket in partial.Created)
+                    Generated.Add(ticket);
                 await PersistPartialAsync(profile.Name, duration);
                 Fail(partial.Message);
             }
@@ -226,27 +233,48 @@ public sealed class UsersViewModel : PageViewModel
     {
         if (Generated.Count == 0)
             return;
-        await _history.SaveAsync(new VoucherBatchExport(DateTimeOffset.Now, profile, duration, [.. Generated]));
+        await _history.SaveAsync(BuildBatch(profile, duration, [.. Generated]));
     }
+
+    /// <summary>
+    /// Construye el lote con los datos opcionales de la tarjeta. El precio es texto libre:
+    /// si no se entiende como número, es un error del formulario y no un lote sin precio.
+    /// </summary>
+    private TicketBatchExport BuildBatch(string profile, TimeSpan duration, IReadOnlyList<CreatedHotspotUser> tickets)
+    {
+        decimal? price = null;
+        if (!string.IsNullOrWhiteSpace(TicketPrice))
+        {
+            if (!decimal.TryParse(TicketPrice, out var parsed) || parsed < 0 || parsed > 100_000)
+                throw new ArgumentException("El precio debe ser un número positivo, por ejemplo 15.00.");
+            price = parsed;
+        }
+
+        return new TicketBatchExport(
+            DateTimeOffset.Now, profile, duration, tickets,
+            NullIfEmpty(TicketBrand), NullIfEmpty(TicketSsid), price, NullIfEmpty(TicketStatusUrl));
+    }
+
+    private static string? NullIfEmpty(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private Task ExportCsvAsync() => RunAsync(async () =>
     {
         var batch = CurrentBatch();
         await _exporter.ShareTextAsync(
-            $"vouchers-{DateTime.Now:yyyyMMdd-HHmm}.csv",
-            VoucherExporter.ToCsv(batch),
-            "Exportar vouchers a CSV");
+            $"tickets-{DateTime.Now:yyyyMMdd-HHmm}.csv",
+            TicketExporter.ToCsv(batch),
+            "Exportar tickets a CSV");
 
-        Success($"Se exportaron {batch.Vouchers.Count} vouchers a CSV.");
+        Success($"Se exportaron {batch.Tickets.Count} tickets a CSV.");
     });
 
     private Task PrintAsync() => RunAsync(async () =>
     {
         var batch = CurrentBatch();
         await _exporter.PrintAsync(
-            $"vouchers-{DateTime.Now:yyyyMMdd-HHmm}.pdf",
-            VoucherPdfWriter.Write(batch),
-            $"Vouchers {batch.Profile}");
+            $"tickets-{DateTime.Now:yyyyMMdd-HHmm}.pdf",
+            TicketPdfWriter.WriteSheet(batch),
+            $"Tickets {batch.Profile}");
 
         Success("PDF generado. Elige la impresora en la ventana que se abrió.");
     });
@@ -255,19 +283,31 @@ public sealed class UsersViewModel : PageViewModel
     {
         var batch = CurrentBatch();
         await _exporter.ShareBytesAsync(
-            $"vouchers-{DateTime.Now:yyyyMMdd-HHmm}.pdf",
-            VoucherPdfWriter.Write(batch),
+            $"tickets-{DateTime.Now:yyyyMMdd-HHmm}.pdf",
+            TicketPdfWriter.WriteSheet(batch),
             "application/pdf",
-            "Compartir vouchers");
+            "Compartir tickets");
 
         Success("Listo para compartir.");
+    });
+
+    /// <summary>HTML autocontenido que el destinatario puede editar y reimprimir desde el navegador.</summary>
+    private Task ShareHtmlAsync() => RunAsync(async () =>
+    {
+        var batch = CurrentBatch();
+        await _exporter.ShareTextAsync(
+            $"tickets-{DateTime.Now:yyyyMMdd-HHmm}.html",
+            TicketHtmlWriter.ToHtml(batch),
+            "Exportar tickets a HTML");
+
+        Success($"Se exportaron {batch.Tickets.Count} tickets a HTML.");
     });
 
     /// <summary>
     /// Construye el lote a partir de lo que hay en pantalla. Se exige que exista algo generado
     /// para no exportar un archivo vacío.
     /// </summary>
-    private VoucherBatchExport CurrentBatch()
+    private TicketBatchExport CurrentBatch()
     {
         if (Generated.Count == 0)
             throw new InvalidOperationException("Genera un lote antes de exportarlo.");
@@ -275,10 +315,9 @@ public sealed class UsersViewModel : PageViewModel
         var profile = SelectedProfile
             ?? throw new InvalidOperationException("Selecciona el perfil del lote.");
 
-        return new VoucherBatchExport(
-            DateTimeOffset.Now,
+        return BuildBatch(
             profile.Name,
-            profile.VoucherDuration ?? TimeSpan.FromHours(1),
+            profile.TicketDuration ?? TimeSpan.FromHours(1),
             [.. Generated]);
     }
 
@@ -287,49 +326,40 @@ public sealed class UsersViewModel : PageViewModel
         if (user is null)
             return;
 
-        await _router.RemoveUserAsync(user.Name);
-        Success($"Voucher «{user.Name}» eliminado.");
+        if (await _router.RemoveUsersAsync([user.Name]) == 0)
+            throw new InvalidOperationException($"El ticket «{user.Name}» ya no existe en el router.");
+
+        Success($"Ticket «{user.Name}» eliminado.");
         await LoadUsersAsync();
     });
 
     private Task DeleteSelectedAsync() => RunAsync(async () =>
     {
-        var user = SelectedUser ?? throw new ArgumentException("Selecciona un voucher de la lista.");
-        await _router.RemoveUserAsync(user.Name);
+        var user = SelectedUser ?? throw new ArgumentException("Selecciona un ticket de la lista.");
+        if (await _router.RemoveUsersAsync([user.Name]) == 0)
+            throw new InvalidOperationException($"El ticket «{user.Name}» ya no existe en el router.");
+
         SelectedUser = null;
-        Success($"Voucher «{user.Name}» eliminado.");
+        Success($"Ticket «{user.Name}» eliminado.");
         await LoadUsersAsync();
     });
 
     private Task RemoveExpiredAsync() => RunAsync(async () =>
     {
-        var expired = Users.Where(u => u.IsExpired).ToList();
+        var expired = Users.Where(u => u.IsExpired).Select(u => u.Name).ToList();
         if (expired.Count == 0)
         {
-            Info("No hay vouchers agotados.");
+            Info("No hay tickets agotados.");
             return;
         }
 
-        var removed = 0;
-        var errors = 0;
-        foreach (var user in expired)
-        {
-            try
-            {
-                await _router.RemoveUserAsync(user.Name);
-                removed++;
-            }
-            catch (Exception)
-            {
-                errors++;
-            }
-        }
+        // Un único listado y un único borrado por lotes, por muchos que haya agotados.
+        var removed = await _router.RemoveUsersAsync(expired);
 
         await LoadUsersAsync();
-        if (errors == 0)
-            Success($"Se eliminaron {removed} vouchers agotados.");
-        else
-            Warn($"Se eliminaron {removed} y fallaron {errors}. Revisa la conexión con el router.");
+        Success(removed == expired.Count
+            ? $"Se eliminaron {removed} tickets agotados."
+            : $"Se eliminaron {removed} de {expired.Count}; el resto ya no existía en el router.");
     });
 
     private async Task LoadUsersAsync()
@@ -347,7 +377,7 @@ public sealed class UsersViewModel : PageViewModel
         var query = Users.AsEnumerable();
 
         if (OnlyExpired)
-            query = query.Where(u => u.State is VoucherState.Expired);
+            query = query.Where(u => u.State is TicketState.Expired);
         if (text.Length > 0)
             query = query.Where(u =>
                 u.Name.Contains(text, StringComparison.OrdinalIgnoreCase) ||
@@ -362,39 +392,8 @@ public sealed class UsersViewModel : PageViewModel
 
     /// <summary>Resumen en una línea, para leer el estado del router de un vistazo.</summary>
     public string Summary => Users.Count == 0
-        ? "Sin vouchers en el router."
-        : $"{Users.Count} vouchers · {Users.Count(u => u.State is VoucherState.InUse)} en uso · " +
-          $"{Users.Count(u => u.State is VoucherState.Available)} sin usar · " +
-          $"{Users.Count(u => u.State is VoucherState.Expired)} agotados";
-}
-
-/// <summary>Comando asíncrono que recibe el elemento de la fila como parámetro.</summary>
-public sealed class AsyncCommand<T> : ICommand
-{
-    private readonly Func<T?, Task> _execute;
-    private bool _busy;
-
-    public AsyncCommand(Func<T?, Task> execute) => _execute = execute;
-
-    public event EventHandler? CanExecuteChanged;
-
-    public bool CanExecute(object? parameter) => !_busy && parameter is T;
-
-    public async void Execute(object? parameter)
-    {
-        if (_busy || parameter is not T value)
-            return;
-
-        _busy = true;
-        CanExecuteChanged?.Invoke(this, EventArgs.Empty);
-        try
-        {
-            await _execute(value);
-        }
-        finally
-        {
-            _busy = false;
-            CanExecuteChanged?.Invoke(this, EventArgs.Empty);
-        }
-    }
+        ? "Sin tickets en el router."
+        : $"{Users.Count} tickets · {Users.Count(u => u.State is TicketState.InUse)} en uso · " +
+          $"{Users.Count(u => u.State is TicketState.Available)} sin usar · " +
+          $"{Users.Count(u => u.State is TicketState.Expired)} agotados";
 }

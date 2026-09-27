@@ -3,11 +3,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:GB.MikroAdmin.Views"
              x:Class="GB.MikroAdmin.Views.UsersPage"
-             Title="Vouchers">
+             Title="Tickets">
 
   <ContentPage.Resources>
-    <views:VoucherStateTextConverter x:Key="StateText" />
-    <views:VoucherStateColorConverter x:Key="StateColor" />
+    <views:TicketStateTextConverter x:Key="StateText" />
+    <views:TicketStateColorConverter x:Key="StateColor" />
     <views:RemainingTextConverter x:Key="Remaining" />
     <views:NoticeColorConverter x:Key="NoticeColor" />
   </ContentPage.Resources>
@@ -42,21 +42,21 @@
       </HorizontalStackLayout>
 
       <!-- Avisos con severidad; se conservan los últimos para poder releer un error. -->
-      <CollectionView ItemsSource="{Binding Notices}" HeightRequest="72">
-        <CollectionView.ItemTemplate>
+      <VerticalStackLayout BindableLayout.ItemsSource="{Binding Notices}">
+        <BindableLayout.ItemTemplate>
           <DataTemplate>
             <Label Text="{Binding Text}" FontSize="13"
                    TextColor="{Binding Severity, Converter={StaticResource NoticeColor}}"
                    Margin="0,0,0,2" />
           </DataTemplate>
-        </CollectionView.ItemTemplate>
-      </CollectionView>
+        </BindableLayout.ItemTemplate>
+      </VerticalStackLayout>
     </VerticalStackLayout>
 
-    <!-- Lista de vouchers: código, perfil, tiempo restante y acción directa por fila. -->
+    <!-- Lista de tickets: código, perfil, tiempo restante y acción directa por fila. -->
     <CollectionView Grid.Row="2" ItemsSource="{Binding FilteredUsers}" Margin="12,4,12,12">
       <CollectionView.EmptyView>
-        <Label Text="No hay vouchers que coincidan." Style="{StaticResource Caption}" HorizontalOptions="Center" Margin="0,30" />
+        <Label Text="No hay tickets que coincidan." Style="{StaticResource Caption}" HorizontalOptions="Center" Margin="0,30" />
       </CollectionView.EmptyView>
       <CollectionView.ItemTemplate>
         <DataTemplate>

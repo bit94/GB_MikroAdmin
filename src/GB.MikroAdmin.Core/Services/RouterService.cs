@@ -54,11 +54,11 @@ public sealed class RouterService : IRouterService, IRouterUserWriter
     public Task AddUserAsync(string name, string password, string profile, TimeSpan limit, CancellationToken cancellationToken = default)
         => Connected().AddUserAsync(name, password, profile, limit, cancellationToken);
 
-    public Task AddProfileAsync(string name, string rateLimit, TimeSpan voucherDuration, CancellationToken cancellationToken = default)
-        => Connected().AddProfileAsync(name, rateLimit, voucherDuration, cancellationToken);
+    public Task AddProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken = default)
+        => Connected().AddProfileAsync(name, rateLimit, ticketDuration, cancellationToken);
 
-    public Task RemoveUserAsync(string name, CancellationToken cancellationToken = default)
-        => Connected().RemoveUserAsync(name, cancellationToken);
+    public Task<int> RemoveUsersAsync(IReadOnlyList<string> names, CancellationToken cancellationToken = default)
+        => Connected().RemoveUsersAsync(names, cancellationToken);
 
     public async Task DisconnectAsync()
     {
@@ -89,8 +89,8 @@ public interface IRouterService : IAsyncDisposable
     Task<IReadOnlyList<HotspotUser>> GetUsersAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<HotspotProfile>> GetProfilesAsync(CancellationToken cancellationToken = default);
     Task AddUserAsync(string name, string password, string profile, TimeSpan limit, CancellationToken cancellationToken = default);
-    Task AddProfileAsync(string name, string rateLimit, TimeSpan voucherDuration, CancellationToken cancellationToken = default);
-    Task RemoveUserAsync(string name, CancellationToken cancellationToken = default);
+    Task AddProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken = default);
+    Task<int> RemoveUsersAsync(IReadOnlyList<string> names, CancellationToken cancellationToken = default);
     Task DisconnectAsync();
 }
 

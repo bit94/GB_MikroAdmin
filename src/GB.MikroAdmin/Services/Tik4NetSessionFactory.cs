@@ -33,19 +33,45 @@ public sealed class Tik4NetSessionFactory : ITikSessionFactory
 
     private sealed class Tik4NetSession(ITikConnection connection) : ITikSession
     {
-        public IReadOnlyList<ITikRow> List(string command)
+        // La conexión admite un comando en vuelo; el refresco automático y un lote en curso
+        // pueden solaparse ahora que nada corre en el hilo de UI.
+        private readonly SemaphoreSlim _gate = new(1, 1);
+
+        public async Task<IReadOnlyList<ITikRow>> ListAsync(string command, CancellationToken cancellationToken)
         {
-            var rows = new List<ITikRow>();
-            foreach (var item in connection.CreateCommandAndParameters(command).ExecuteList())
-                rows.Add(new Tik4NetRow(item));
-            return rows;
+            await _gate.WaitAsync(cancellationToken);
+            try
+            {
+                // tik4net expone una API mayormente síncrona; se aparta del hilo de UI para no bloquearlo.
+                return await Task.Run<IReadOnlyList<ITikRow>>(() =>
+                {
+                    var rows = new List<ITikRow>();
+                    foreach (var item in connection.CreateCommandAndParameters(command).ExecuteList())
+                        rows.Add(new Tik4NetRow(item));
+                    return rows;
+                }, cancellationToken);
+            }
+            finally
+            {
+                _gate.Release();
+            }
         }
 
-        public Task ExecuteAsync(string command, IReadOnlyDictionary<string, string> parameters)
+        public async Task ExecuteAsync(string command, IReadOnlyDictionary<string, string> parameters, CancellationToken cancellationToken)
         {
-            var arguments = parameters.SelectMany(pair => new[] { pair.Key, pair.Value }).ToArray();
-            connection.CreateCommandAndParameters(command, arguments).ExecuteNonQuery();
-            return Task.CompletedTask;
+            await _gate.WaitAsync(cancellationToken);
+            try
+            {
+                await Task.Run(() =>
+                {
+                    var arguments = parameters.SelectMany(pair => new[] { pair.Key, pair.Value }).ToArray();
+                    connection.CreateCommandAndParameters(command, arguments).ExecuteNonQuery();
+                }, cancellationToken);
+            }
+            finally
+            {
+                _gate.Release();
+            }
         }
 
         public ValueTask DisposeAsync()

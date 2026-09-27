@@ -16,35 +16,40 @@ public sealed class ProfileMarkerTests
     [Fact]
     public void Read_returns_the_declared_duration()
     {
-        Assert.Equal(TimeSpan.FromHours(2), ProfileMarker.ReadVoucherDuration("GBM:voucher-duration=2h"));
+        Assert.Equal(TimeSpan.FromHours(2), ProfileMarker.ReadTicketDuration("GBM:voucher-duration=2h"));
     }
 
     [Fact]
     public void Read_returns_null_when_the_marker_is_absent()
     {
-        Assert.Null(ProfileMarker.ReadVoucherDuration("plan de mostrador"));
-        Assert.Null(ProfileMarker.ReadVoucherDuration(null));
-        Assert.Null(ProfileMarker.ReadVoucherDuration("   "));
+        Assert.Null(ProfileMarker.ReadTicketDuration("plan de mostrador"));
+        Assert.Null(ProfileMarker.ReadTicketDuration(null));
+        Assert.Null(ProfileMarker.ReadTicketDuration("   "));
     }
 
     [Fact]
     public void Read_returns_null_when_the_marker_has_an_empty_value()
-        => Assert.Null(ProfileMarker.ReadVoucherDuration("GBM:voucher-duration="));
+        => Assert.Null(ProfileMarker.ReadTicketDuration("GBM:voucher-duration="));
 
     /// <summary>Un comentario puede llevar notas añadidas después del marcador.</summary>
     [Fact]
     public void Read_ignores_trailing_notes()
-        => Assert.Equal(TimeSpan.FromHours(1), ProfileMarker.ReadVoucherDuration("GBM:voucher-duration=1h promo mayo"));
+        => Assert.Equal(TimeSpan.FromHours(1), ProfileMarker.ReadTicketDuration("GBM:voucher-duration=1h promo mayo"));
+
+    /// <summary>Un comentario puede llevar notas escritas antes del marcador.</summary>
+    [Fact]
+    public void Read_ignores_leading_notes()
+        => Assert.Equal(TimeSpan.FromHours(1), ProfileMarker.ReadTicketDuration("mostrador GBM:voucher-duration=1h"));
 
     [Fact]
     public void Build_and_Read_are_inverse()
     {
         var duration = TimeSpan.FromDays(30);
 
-        Assert.Equal(duration, ProfileMarker.ReadVoucherDuration(ProfileMarker.Build(duration)));
+        Assert.Equal(duration, ProfileMarker.ReadTicketDuration(ProfileMarker.Build(duration)));
     }
 
     [Fact]
     public void Read_throws_on_a_corrupt_value()
-        => Assert.Throws<FormatException>(() => ProfileMarker.ReadVoucherDuration("GBM:voucher-duration=abc"));
+        => Assert.Throws<FormatException>(() => ProfileMarker.ReadTicketDuration("GBM:voucher-duration=abc"));
 }

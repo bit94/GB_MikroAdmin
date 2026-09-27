@@ -9,7 +9,7 @@ public sealed class Tik4NetRouterTransportTests
     private static RouterSettings RealSettings => new("192.168.88.1", 8729, "admin", "secret", UseTls: true, Simulated: false);
 
     [Fact]
-    public async Task RemoveUser_resolves_the_id_instead_of_passing_the_name()
+    public async Task RemoveUsers_resolves_ids_and_sends_a_single_batched_remove()
     {
         var session = new FakeSession
         {
@@ -24,16 +24,40 @@ public sealed class Tik4NetRouterTransportTests
         };
 
         await using var transport = await ConnectAsync(session);
-        await transport.RemoveUserAsync("222222", CancellationToken.None);
+        var removed = await transport.RemoveUsersAsync(["111111", "222222"], CancellationToken.None);
 
+        Assert.Equal(2, removed);
         var call = Assert.Single(session.Executions);
         Assert.Equal("/ip/hotspot/user/remove", call.Command);
-        // Pasar el nombre en "numbers" fallaba contra un equipo real: RouterOS espera índice o rango.
-        Assert.Equal("*1B", call.Parameters[".id"]);
+        // Pasar nombres en "numbers" fallaba contra un equipo real: RouterOS espera índice o rango.
+        Assert.Equal("*1A,*1B", call.Parameters["numbers"]);
     }
 
     [Fact]
-    public async Task RemoveUser_throws_when_the_user_is_already_gone()
+    public async Task RemoveUsers_with_a_single_name_removes_just_that_user()
+    {
+        var session = new FakeSession
+        {
+            Rows =
+            {
+                ["/ip/hotspot/user/print"] =
+                [
+                    Row((".id", "*1A"), ("name", "111111")),
+                    Row((".id", "*1B"), ("name", "222222"))
+                ]
+            }
+        };
+
+        await using var transport = await ConnectAsync(session);
+        var removed = await transport.RemoveUsersAsync(["222222"], CancellationToken.None);
+
+        Assert.Equal(1, removed);
+        var call = Assert.Single(session.Executions);
+        Assert.Equal("*1B", call.Parameters["numbers"]);
+    }
+
+    [Fact]
+    public async Task RemoveUsers_ignores_names_that_no_longer_exist()
     {
         var session = new FakeSession
         {
@@ -41,9 +65,9 @@ public sealed class Tik4NetRouterTransportTests
         };
 
         await using var transport = await ConnectAsync(session);
+        var removed = await transport.RemoveUsersAsync(["999999"], CancellationToken.None);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => transport.RemoveUserAsync("999999", CancellationToken.None));
+        Assert.Equal(0, removed);
         Assert.Empty(session.Executions);
     }
 
@@ -91,11 +115,11 @@ public sealed class Tik4NetRouterTransportTests
 
         Assert.Equal(TimeSpan.FromHours(1), user.LimitUptime);
         Assert.Equal(TimeSpan.FromMinutes(30), user.Uptime);
-        Assert.Equal(VoucherState.InUse, user.State);
+        Assert.Equal(TicketState.InUse, user.State);
     }
 
     [Fact]
-    public async Task Profiles_reads_the_voucher_duration_from_the_comment()
+    public async Task Profiles_reads_the_ticket_duration_from_the_comment()
     {
         var session = new FakeSession
         {
@@ -112,7 +136,7 @@ public sealed class Tik4NetRouterTransportTests
         await using var transport = await ConnectAsync(session);
         var profile = Assert.Single(await transport.ProfilesAsync(CancellationToken.None));
 
-        Assert.Equal(TimeSpan.FromMinutes(150), profile.VoucherDuration);
+        Assert.Equal(TimeSpan.FromMinutes(150), profile.TicketDuration);
         Assert.Equal(1, profile.SharedUsers);
     }
 
@@ -193,10 +217,11 @@ public sealed class Tik4NetRouterTransportTests
 
         public List<(string Command, IReadOnlyDictionary<string, string> Parameters)> Executions { get; } = [];
 
-        public IReadOnlyList<ITikRow> List(string command)
-            => Rows.TryGetValue(command, out var rows) ? rows : [];
+        public Task<IReadOnlyList<ITikRow>> ListAsync(string command, CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<ITikRow>>(
+                Rows.TryGetValue(command, out var rows) ? rows : []);
 
-        public Task ExecuteAsync(string command, IReadOnlyDictionary<string, string> parameters)
+        public Task ExecuteAsync(string command, IReadOnlyDictionary<string, string> parameters, CancellationToken cancellationToken)
         {
             Executions.Add((command, parameters));
             return Task.CompletedTask;

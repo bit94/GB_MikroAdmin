@@ -6,7 +6,7 @@
   <Application.Resources>
     <ResourceDictionary>
       <views:InvertBoolConverter x:Key="Invert" />
-      <!-- Paleta: un solo acento y fondos neutros, para que el estado del voucher resalte. -->
+      <!-- Paleta: un solo acento y fondos neutros, para que el estado del ticket resalte. -->
       <Color x:Key="Primary">#2563EB</Color>
       <Color x:Key="Surface">#132033</Color>
       <Color x:Key="SurfaceAlt">#1B2B44</Color>

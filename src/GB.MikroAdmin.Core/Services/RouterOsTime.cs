@@ -39,7 +39,7 @@ public static class RouterOsTime
     /// </summary>
     /// <remarks>
     /// Falla de forma explícita a propósito: antes un carácter desconocido se traducía a
-    /// cero y un voucher con límite ilegible acababa pareciendo ilimitado.
+    /// cero y un ticket con límite ilegible acababa pareciendo ilimitado.
     /// </remarks>
     public static TimeSpan? Parse(string? value)
     {

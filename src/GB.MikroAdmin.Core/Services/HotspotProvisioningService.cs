@@ -23,20 +23,20 @@ public interface IHotspotProvisioningService
 }
 
 /// <summary>
-/// Genera vouchers donde el código visible es a la vez usuario y contraseña, que es lo que
+/// Genera tickets donde el código visible es a la vez usuario y contraseña, que es lo que
 /// permite entregar un solo dato al cliente.
 /// </summary>
 public sealed class HotspotProvisioningService : IHotspotProvisioningService
 {
     public const int MinQuantity = 1;
     public const int MaxQuantity = 100;
-    /// <summary>Reintentos ante un código que ya existe en el router antes de rendirse.</summary>
+    /// <summary>Tope de intentos al acuñar códigos únicos para el lote; no reintenta los que ya existan en el router, que pasan a la lista de fallidos.</summary>
     public const int CodeAttempts = 5;
 
     private readonly IRouterUserWriter _router;
-    private readonly IVoucherCodeGenerator _codes;
+    private readonly ITicketCodeGenerator _codes;
 
-    public HotspotProvisioningService(IRouterUserWriter router, IVoucherCodeGenerator codes)
+    public HotspotProvisioningService(IRouterUserWriter router, ITicketCodeGenerator codes)
     {
         _router = router;
         _codes = codes;
@@ -54,7 +54,7 @@ public sealed class HotspotProvisioningService : IHotspotProvisioningService
         if (string.IsNullOrWhiteSpace(profile))
             throw new ArgumentException("Selecciona un perfil.", nameof(profile));
         if (limit <= TimeSpan.Zero)
-            throw new ArgumentOutOfRangeException(nameof(limit), limit, "La duración del voucher debe ser mayor que cero.");
+            throw new ArgumentOutOfRangeException(nameof(limit), limit, "La duración del ticket debe ser mayor que cero.");
 
         // Los códigos se acuñan primero para poder detectar un duplicado dentro del mismo lote
         // sin haber creado ya parte de los usuarios en el router.
@@ -85,7 +85,7 @@ public sealed class HotspotProvisioningService : IHotspotProvisioningService
         }
 
         if (failed.Count > 0)
-            throw new VoucherBatchException(created, failed);
+            throw new TicketBatchException(created, failed);
 
         return created;
     }
@@ -108,20 +108,20 @@ public sealed class HotspotProvisioningService : IHotspotProvisioningService
 }
 
 /// <summary>Se lanzó parte del lote y falló el resto; conserva lo creado para no perder los códigos ya válidos.</summary>
-public sealed class VoucherBatchException(IReadOnlyList<CreatedHotspotUser> created, IReadOnlyList<string> failed)
-    : Exception($"Se crearon {created.Count} vouchers y fallaron {failed.Count} ({string.Join(", ", failed)}).")
+public sealed class TicketBatchException(IReadOnlyList<CreatedHotspotUser> created, IReadOnlyList<string> failed)
+    : Exception($"Se crearon {created.Count} tickets y fallaron {failed.Count} ({string.Join(", ", failed)}).")
 {
     public IReadOnlyList<CreatedHotspotUser> Created { get; } = created;
     public IReadOnlyList<string> Failed { get; } = failed;
 }
 
-public interface IVoucherCodeGenerator
+public interface ITicketCodeGenerator
 {
     string Next();
 }
 
 /// <summary>Código numérico de 6 dígitos, igual que el que se dicta en mostrador.</summary>
-public sealed class NumericVoucherCodeGenerator : IVoucherCodeGenerator
+public sealed class NumericTicketCodeGenerator : ITicketCodeGenerator
 {
     public const int MinInclusive = 100_000;
     public const int MaxExclusive = 1_000_000;
