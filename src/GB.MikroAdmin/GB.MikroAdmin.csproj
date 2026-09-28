@@ -2,6 +2,7 @@
   <PropertyGroup>
     <TargetFrameworks>net10.0-android;net10.0-windows10.0.19041.0</TargetFrameworks>
     <UseMaui>true</UseMaui>
+    <SupportedOSPlatformVersion Condition="'$(TargetFramework)' == 'net10.0-android'">26</SupportedOSPlatformVersion>
     <SingleProject>true</SingleProject>
     <OutputType>Exe</OutputType>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -9,10 +10,18 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <ApplicationTitle>MikroAdmin</ApplicationTitle>
     <ApplicationId>com.gb.mikroadmin</ApplicationId>
+    <MauiIcon>Resources/Icons/appicon.svg</MauiIcon>
     <!-- Ejecución y depuración de Windows sin generar un paquete MSIX. -->
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <WindowsAppIcon>Resources/Icons/appicon.ico</WindowsAppIcon>
   </PropertyGroup>
+  <ItemGroup>
+    <MauiAsset Include="Resources/Icons/favicon.ico" />
+    <MauiAsset Include="Resources/Icons/appicon.ico" />
+    <MauiAsset Include="Resources/Icons/StoreLogo.png" />
+    <MauiAsset Include="Resources/Icons/Square44x44Logo.png" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
     <PackageReference Include="tik4net" Version="4.0.0" />
