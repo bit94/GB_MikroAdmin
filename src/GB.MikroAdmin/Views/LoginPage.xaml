@@ -7,7 +7,7 @@
              Title="Conectar MikroTik">
   <ScrollView>
     <VerticalStackLayout Padding="20" Spacing="10">
-      <Label Text="MikroAdmin" FontSize="28" FontAttributes="Bold" />
+      <Label Text="Mikro Admin" FontSize="28" FontAttributes="Bold" />
       <Label Text="API segura de RouterOS" Style="{StaticResource Caption}" />
 
       <Label Text="Simulación" Style="{StaticResource SectionTitle}" />

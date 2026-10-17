@@ -31,7 +31,7 @@ public partial class AppShell : Shell
         // siendo un ShellItem para poder volver a él con la ruta absoluta //login al desconectar.
         Items.Add(login);
 
-        Items.Add(BuildSection("MikroAdmin", ShellMenu.Sections));
+        Items.Add(BuildSection("Mikro Admin", ShellMenu.Sections));
     }
 
     private ShellItem BuildSection(string title, IReadOnlyList<ShellMenu.Entry> entries)

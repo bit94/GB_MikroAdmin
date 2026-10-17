@@ -74,7 +74,7 @@ public static class TicketHtmlWriter
 
     private static string Header(TicketBatchExport batch)
     {
-        var header = $"{batch.Brand?.Trim().TrimEnd('.') ?? "MikroAdmin"} · {batch.Tickets.Count} tickets · " +
+        var header = $"{batch.Brand?.Trim().TrimEnd('.') ?? "Mikro Admin"} · {batch.Tickets.Count} tickets · " +
                      $"{batch.Profile} · {batch.DurationText} · {batch.CreatedAt:dd/MM/yyyy HH:mm}";
         return header;
     }

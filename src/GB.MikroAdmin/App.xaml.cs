@@ -23,7 +23,7 @@ public partial class App : Application
         // App: construirlas antes lanzaba "StaticResource not found for key Caption" al arrancar.
         shell.BuildMenu();
 
-        var window = new Window(shell) { Title = "MikroAdmin" };
+        var window = new Window(shell) { Title = "Mikro Admin" };
 #if WINDOWS
         window.HandlerChanged += (_, _) => ApplyWindowsChrome(window);
 #endif

@@ -122,7 +122,7 @@ public static class TicketPdfWriter
         var sb = new StringBuilder();
 
         // Encabezado: da contexto a la hoja cuando se separa del resto del lote.
-        var header = $"{batch.Brand?.Trim().TrimEnd('.') ?? "MikroAdmin"} · {batch.Tickets.Count} tickets · " +
+        var header = $"{batch.Brand?.Trim().TrimEnd('.') ?? "Mikro Admin"} · {batch.Tickets.Count} tickets · " +
                      $"{batch.Profile} · {batch.DurationText} · {batch.CreatedAt:dd/MM/yyyy HH:mm}";
         if (totalPages > 1)
             header += $" · página {pageIndex + 1} de {totalPages}";

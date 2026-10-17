@@ -9,7 +9,7 @@
     <Nullable>enable</Nullable>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <MauiEnableXamlCBindingWithSourceCompilation>true</MauiEnableXamlCBindingWithSourceCompilation>
-    <ApplicationTitle>MikroAdmin</ApplicationTitle>
+    <ApplicationTitle>Mikro Admin</ApplicationTitle>
     <ApplicationId>com.gb.mikroadmin</ApplicationId>
     <!-- Ejecución y depuración de Windows sin generar un paquete MSIX. -->
     <WindowsPackageType>None</WindowsPackageType>
