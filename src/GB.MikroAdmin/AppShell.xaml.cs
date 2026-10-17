@@ -27,8 +27,8 @@ public partial class AppShell : Shell
         // páginas: si se añade una sección, no puede quedar sin su página registrada.
         var login = BuildContent(ShellMenu.Login);
 
-        // El login va fuera del menú: es la pantalla de entrada y no debe verse en el flyout.
-        SetFlyoutBehavior(login, FlyoutBehavior.Disabled);
+        // El flyout está desactivado, así que el login no aparece en ningún menú lateral. Sigue
+        // siendo un ShellItem para poder volver a él con la ruta absoluta //login al desconectar.
         Items.Add(login);
 
         Items.Add(BuildSection("MikroAdmin", ShellMenu.Sections));
@@ -42,10 +42,18 @@ public partial class AppShell : Shell
         return section;
     }
 
-    private ShellContent BuildContent(ShellMenu.Entry entry) => new()
+    private ShellContent BuildContent(ShellMenu.Entry entry)
     {
-        Title = entry.Title,
-        Route = entry.Route,
-        ContentTemplate = new DataTemplate(() => (Page)_services.GetRequiredService(entry.PageType))
-    };
+        var content = new ShellContent
+        {
+            Title = entry.Title,
+            Route = entry.Route,
+            ContentTemplate = new DataTemplate(() => (Page)_services.GetRequiredService(entry.PageType))
+        };
+
+        if (!string.IsNullOrEmpty(entry.Icon))
+            content.Icon = entry.Icon;
+
+        return content;
+    }
 }

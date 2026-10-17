@@ -36,7 +36,8 @@ public static class TicketHtmlWriter
               .code { font-family: "Courier New", monospace; font-weight: bold;
                       font-size: 13pt; letter-spacing: 0.5pt; margin-bottom: 1.5mm; }
               .qr img { width: 24mm; height: 24mm; }
-              .meta { font-size: 5.5pt; color: #555; margin-top: 1mm; }
+              .details { font-size: 6.5pt; font-weight: bold; margin-top: 1mm; }
+              .meta { font-size: 5.5pt; color: #555; margin-top: 0.5mm; }
             </style>
             </head>
             <body>
@@ -59,8 +60,10 @@ public static class TicketHtmlWriter
               .Append(Convert.ToBase64String(QrPng(batch.QrPayloadFor(ticket))))
               .Append("\" alt=\"QR\"></div>");
 
-            if (Meta(batch) is { } meta)
-                sb.Append("<div class=\"meta\">").Append(H(meta)).Append("</div>");
+            sb.Append("<div class=\"details\">").Append(H(Details(batch))).Append("</div>");
+
+            if (batch.StatusUrl?.Trim() is { Length: > 0 } statusUrl)
+                sb.Append("<div class=\"meta\">Estado: ").Append(H(statusUrl)).Append("</div>");
 
             sb.Append("</div>\n");
         }
@@ -76,15 +79,13 @@ public static class TicketHtmlWriter
         return header;
     }
 
-    /// <summary>Línea pequeña con los datos comerciales del lote, igual que el encabezado del PDF.</summary>
-    private static string? Meta(TicketBatchExport batch)
+    /// <summary>Precio y duración bajo el QR; el cliente ve ambos datos al escanear la tarjeta.</summary>
+    private static string Details(TicketBatchExport batch)
     {
-        var parts = new List<string>();
-        if (batch.Price is { } price)
-            parts.Add("$ " + price.ToString("0.00", CultureInfo.InvariantCulture));
-        if (batch.StatusUrl?.Trim() is { Length: > 0 } url)
-            parts.Add("Estado: " + url);
-        return parts.Count == 0 ? null : string.Join(" · ", parts);
+        var duration = "Duración: " + batch.DurationText;
+        return batch.Price is { } price
+            ? "$ " + price.ToString("0.00", CultureInfo.InvariantCulture) + " · " + duration
+            : duration;
     }
 
     private static byte[] QrPng(string payload)

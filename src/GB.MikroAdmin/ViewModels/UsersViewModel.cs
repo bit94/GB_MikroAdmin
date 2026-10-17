@@ -36,6 +36,7 @@ public sealed class UsersViewModel : PageViewModel
     private string _progressText = string.Empty;
     private double _progressPercent;
     private bool _isGenerating;
+    private bool _isBatchDialogVisible;
     private CancellationTokenSource? _batchCancellation;
     private TicketBatchExport? _currentBatch;
 
@@ -57,6 +58,12 @@ public sealed class UsersViewModel : PageViewModel
         _ticketPrice = Preferences.Default.Get(PricePreference, string.Empty);
 
         RefreshCommand = new AsyncCommand(RefreshAsync);
+        OpenBatchDialogCommand = new AsyncCommand(OpenBatchDialogAsync);
+        CancelBatchDialogCommand = new AsyncCommand(() =>
+        {
+            IsBatchDialogVisible = false;
+            return Task.CompletedTask;
+        });
         CreateBatchCommand = new AsyncCommand(CreateBatchAsync);
         CancelBatchCommand = new AsyncCommand(() => { _batchCancellation?.Cancel(); return Task.CompletedTask; });
         DeleteUserCommand = new AsyncCommand<HotspotUser>(DeleteUserAsync);
@@ -112,6 +119,13 @@ public sealed class UsersViewModel : PageViewModel
         }
     }
 
+    /// <summary>El formulario de red y precio se pide en un modal antes de crear el lote.</summary>
+    public bool IsBatchDialogVisible
+    {
+        get => _isBatchDialogVisible;
+        private set => Set(ref _isBatchDialogVisible, value);
+    }
+
     /// <summary>No hay nada que exportar hasta que exista un lote generado.</summary>
     public bool CanExport => Generated.Count > 0 && !IsGenerating;
 
@@ -143,7 +157,7 @@ public sealed class UsersViewModel : PageViewModel
         }
     }
 
-    /// <summary>Datos opcionales que se imprimen en la tarjeta; se preguntan aquí y viajan con el lote.</summary>
+    /// <summary>Datos de la tarjeta; se piden antes de generar y viajan con el lote.</summary>
     public string TicketBrand { get => _ticketBrand; set => Set(ref _ticketBrand, value); }
 
     public string TicketSsid
@@ -202,6 +216,8 @@ public sealed class UsersViewModel : PageViewModel
             : "Este perfil no tiene duración configurada; no se pueden generar tickets.";
 
     public ICommand RefreshCommand { get; }
+    public ICommand OpenBatchDialogCommand { get; }
+    public ICommand CancelBatchDialogCommand { get; }
     public ICommand CreateBatchCommand { get; }
     public ICommand CancelBatchCommand { get; }
     public ICommand DeleteUserCommand { get; }
@@ -243,6 +259,43 @@ public sealed class UsersViewModel : PageViewModel
     });
 
     /// <summary>
+    /// Antes de pedir red y precio se valida lo elegido en la página: si falta el perfil o su
+    /// duración, el modal no se abre y el aviso queda junto al formulario que hay que corregir.
+    /// </summary>
+    private Task OpenBatchDialogAsync()
+    {
+        try
+        {
+            ValidateBatchSetup();
+            Notices.Clear();
+            IsBatchDialogVisible = true;
+        }
+        catch (Exception exception)
+        {
+            Fail(exception.Message);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private (int Count, HotspotProfile Profile, TimeSpan Duration) ValidateBatchSetup()
+    {
+        if (!int.TryParse(BatchQuantity, out var count))
+            throw new ArgumentException("La cantidad debe ser un número.");
+        if (count is < HotspotProvisioningService.MinQuantity or > HotspotProvisioningService.MaxQuantity)
+            throw new ArgumentException(
+                $"La cantidad debe estar entre {HotspotProvisioningService.MinQuantity} y {HotspotProvisioningService.MaxQuantity}.");
+
+        var profile = SelectedProfile
+            ?? throw new ArgumentException("Selecciona el perfil que usarán los tickets.");
+        var duration = profile.TicketDuration
+            ?? throw new ArgumentException($"El perfil «{profile.Name}» no tiene duración de ticket. " +
+                                           "Créalo de nuevo indicando la duración, o usa otro perfil.");
+
+        return (count, profile, duration);
+    }
+
+    /// <summary>
     /// Un lote largo tarda minutos: se informa del avance y se permite cancelar. Lo ya creado
     /// se conserva, porque esos usuarios existen en el router aunque el lote se interrumpa.
     /// </summary>
@@ -251,29 +304,41 @@ public sealed class UsersViewModel : PageViewModel
         if (IsGenerating)
             return;
 
-        IsGenerating = true;
+        int count;
+        HotspotProfile profile;
+        TimeSpan duration;
+        decimal price;
+        string ssid;
+        string? brand;
+        string? statusUrl;
+        DateTimeOffset createdAt;
+
         try
         {
-            if (!int.TryParse(BatchQuantity, out var count))
-                throw new ArgumentException("La cantidad debe ser un número.");
-            if (count is < HotspotProvisioningService.MinQuantity or > HotspotProvisioningService.MaxQuantity)
-                throw new ArgumentException(
-                    $"La cantidad debe estar entre {HotspotProvisioningService.MinQuantity} y {HotspotProvisioningService.MaxQuantity}.");
-
-            var profile = SelectedProfile
-                ?? throw new ArgumentException("Selecciona el perfil que usarán los tickets.");
-            var duration = profile.TicketDuration
-                ?? throw new ArgumentException($"El perfil «{profile.Name}» no tiene duración de ticket. " +
-                                               "Créalo de nuevo indicando la duración, o usa otro perfil.");
+            // Cada envío empieza sin avisos del intento anterior: el modal muestra solo el
+            // error que hay que corregir ahora, no la historia de la página.
+            Notices.Clear();
+            (count, profile, duration) = ValidateBatchSetup();
 
             // Todo lo que puede fallar por el formulario se valida antes de crear usuarios:
             // un precio mal escrito no debe dejar tickets huérfanos en el router.
-            var price = ParsePrice();
-            var brand = NullIfEmpty(TicketBrand);
-            var ssid = NullIfEmpty(TicketSsid);
-            var statusUrl = NullIfEmpty(TicketStatusUrl);
-            var createdAt = DateTimeOffset.Now;
+            ssid = RequiredSsid();
+            price = RequiredPrice();
+            brand = NullIfEmpty(TicketBrand);
+            statusUrl = NullIfEmpty(TicketStatusUrl);
+            createdAt = DateTimeOffset.Now;
+        }
+        catch (Exception exception)
+        {
+            Fail(exception.Message);
+            return;
+        }
 
+        // Con los datos validados, el modal deja paso al progreso del lote.
+        IsBatchDialogVisible = false;
+        IsGenerating = true;
+        try
+        {
             Generated.Clear();
             _currentBatch = null;
             Raise(nameof(CanExport));
@@ -354,14 +419,24 @@ public sealed class UsersViewModel : PageViewModel
         await _history.SaveAsync(_currentBatch);
     }
 
-    /// <summary>El precio es texto libre: si no se entiende como número, es un error del formulario y no un lote sin precio.</summary>
-    private decimal? ParsePrice()
+    /// <summary>La red y el precio se imprimen en cada tarjeta, así que ambos son obligatorios.</summary>
+    private string RequiredSsid()
     {
-        if (string.IsNullOrWhiteSpace(TicketPrice))
-            return null;
+        var ssid = TicketSsid.Trim();
+        if (ssid.Length == 0)
+            throw new ArgumentException("Indica la red Wi-Fi del ticket.");
 
-        if (!decimal.TryParse(TicketPrice, out var parsed) || parsed < 0 || parsed > 100_000)
-            throw new ArgumentException("El precio debe ser un número positivo, por ejemplo 15.00.");
+        return ssid;
+    }
+
+    private decimal RequiredPrice()
+    {
+        var text = TicketPrice.Trim();
+        if (text.Length == 0)
+            throw new ArgumentException("Indica el precio del ticket.");
+
+        if (!decimal.TryParse(text, out var parsed) || parsed < 0 || parsed > 100_000)
+            throw new ArgumentException("El precio debe ser un número válido, por ejemplo 15.00.");
 
         return parsed;
     }

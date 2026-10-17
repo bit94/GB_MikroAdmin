@@ -201,11 +201,11 @@ public sealed class TicketPdfWriterTests
     }
 
     /// <summary>
-    /// La tarjeta se reduce a lo que el cliente necesita: red Wi-Fi, clave y QR de conexión.
-    /// Los datos comerciales (precio, portal) ya no se repiten en cada tarjeta.
+    /// La tarjeta reúne red, precio y duración junto al QR, que es lo que el cliente necesita
+    /// para conectarse y lo que el vendedor necesita cobrar.
     /// </summary>
     [Fact]
-    public void Pdf_card_shows_wifi_code_and_qr_when_provided()
+    public void Pdf_card_shows_wifi_price_duration_and_qr_when_provided()
     {
         var batch = new TicketBatchExport(
             new DateTimeOffset(2026, 9, 27, 12, 0, 0, TimeSpan.Zero),
@@ -217,21 +217,20 @@ public sealed class TicketPdfWriterTests
 
         Assert.Contains("Red: GB_nextGen_PA01", pdf);
         Assert.Contains("(1249904) Tj", pdf);
+        Assert.Contains("$ 15.00 · Duración: 1 h", pdf);
         // El QR se pinta como rectángulos negros: debe haber muchos.
         Assert.True(CountOccurrences(pdf, " re f") > 20, "esperaba módulos del QR en el PDF");
-        Assert.DoesNotContain("$ 15.00", pdf);
-        Assert.DoesNotContain("Consultar estado", pdf);
     }
 
     [Fact]
-    public void Pdf_card_omits_optional_lines_when_the_data_is_missing()
+    public void Pdf_card_shows_duration_even_without_optional_data()
     {
         var pdf = Text(TicketPdfWriter.WriteSheet(Batch(1)));
 
         Assert.DoesNotContain("Red:", pdf);
         Assert.DoesNotContain("Wi-Fi:", pdf);
         Assert.DoesNotContain("$ ", pdf);
-        Assert.DoesNotContain("Consultar estado", pdf);
+        Assert.Contains("Duración: 2 h", pdf);
     }
 
     /// <summary>
@@ -248,15 +247,16 @@ public sealed class TicketPdfWriterTests
 
         var pdf = Text(TicketPdfWriter.WriteThermal(batch, batch.Tickets[0]));
 
-        // Solo marca: 10 + 11 (título) + 28 (código) + 144 (QR 140 + 4) + 10.
-        Assert.Contains("/MediaBox [0 0 226.8 203]", pdf);
+        // Marca: 10 + 11 (título) + 28 (código) + 144 (QR 140 + 4) + 16 (datos) + 10.
+        Assert.Contains("/MediaBox [0 0 226.8 219]", pdf);
         Assert.Equal(1, CountOccurrences(pdf, "/Type /Page "));
         Assert.Contains("(1249904) Tj", pdf);
+        Assert.Contains("Duración: 1 h", pdf);
     }
 
     /// <summary>
-    /// Sin datos opcionales la tarjeta encoge a sus dos líneas obligatorias: código y QR. La
-    /// página térmica debe medir exactamente eso, ni un punto más.
+    /// Sin marca la tarjeta encoge a código, QR, precio/duración y nada más. La página térmica
+    /// debe medir exactamente eso, ni un punto más.
     /// </summary>
     [Fact]
     public void Pdf_thermal_page_height_matches_the_content_without_optional_lines()
@@ -265,8 +265,8 @@ public sealed class TicketPdfWriterTests
 
         var pdf = Text(TicketPdfWriter.WriteThermal(batch, batch.Tickets[0]));
 
-        // 10 + 28 (código) + 144 (QR 140 + 4) + 10.
-        Assert.Contains("/MediaBox [0 0 226.8 192]", pdf);
+        // 10 + 28 (código) + 144 (QR 140 + 4) + 16 (datos) + 10.
+        Assert.Contains("/MediaBox [0 0 226.8 208]", pdf);
     }
 
     /// <summary>

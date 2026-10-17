@@ -14,6 +14,6 @@ public sealed class MainMenuViewModel(ConnectionState connection) : PageViewMode
     public ICommand DisconnectCommand { get; } = new AsyncCommand(async () =>
     {
         await connection.DisconnectAsync();
-        await Shell.Current.GoToAsync(Routes.Login);
+        await Shell.Current.GoToAsync(Routes.LoginRoot);
     });
 }

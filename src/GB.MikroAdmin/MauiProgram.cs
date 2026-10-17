@@ -13,6 +13,11 @@ public static class MauiProgram
         builder.UseMauiApp<App>();
 
 #if WINDOWS
+        // La barra superior nativa de Shell siempre dibuja el título junto al icono. Se cambia su
+        // plantilla por una que muestre solo el icono, conservando el título en el tooltip y en
+        // las propiedades de accesibilidad.
+        Platforms.Windows.IconOnlyTabBar.Apply();
+
         // En Windows, MAUI dibuja Picker.Title como encabezado interno del ComboBox y duplica la
         // etiqueta del formulario. Se mueve al placeholder, como ocurre en Android.
         Microsoft.Maui.Handlers.PickerHandler.Mapper.AppendToMapping("TitleAsPlaceholder", (handler, view) =>
@@ -20,6 +25,13 @@ public static class MauiProgram
             handler.PlatformView.Header = null;
             handler.PlatformView.PlaceholderText = view.Title;
         });
+#endif
+
+#if ANDROID
+        // La barra inferior nativa dibuja icono y texto; se ocultan las etiquetas desde el
+        // tracker de apariencia para conservar los títulos como descripción accesible.
+        builder.ConfigureMauiHandlers(handlers =>
+            handlers.AddHandler<Shell, Platforms.Android.IconOnlyShellRenderer>());
 #endif
 
         // --- Infraestructura ---------------------------------------------------------------

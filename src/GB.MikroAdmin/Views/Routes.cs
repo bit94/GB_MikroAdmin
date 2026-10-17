@@ -11,6 +11,9 @@ namespace GB.MikroAdmin.Views;
 public static class Routes
 {
     public const string Login = "login";
+
+    /// <summary>El login vive en otro ShellItem, así que volver a él exige una ruta absoluta.</summary>
+    public const string LoginRoot = "//login";
     public const string Home = "//home";
     public const string Interfaces = "//interfaces";
     public const string Users = "//users";
@@ -26,8 +29,8 @@ public static class Routes
 /// </summary>
 public static class ShellMenu
 {
-    /// <summary>Una entrada del menú: título visible, ruta y tipo de página.</summary>
-    public readonly record struct Entry(string Title, string Route, Type PageType);
+    /// <summary>Una entrada del menú: título, ruta, tipo de página e icono de la barra de navegación.</summary>
+    public readonly record struct Entry(string Title, string Route, Type PageType, string? Icon = null);
     /// <summary>
     /// Pantalla de entrada. Va fuera del menú: no debe aparecer en el desplegable lateral.
     /// </summary>
@@ -36,12 +39,12 @@ public static class ShellMenu
     /// <summary>Secciones del menú, en orden de aparición.</summary>
     public static IReadOnlyList<Entry> Sections { get; } =
     [
-        new("Inicio", "home", typeof(MainMenuPage)),
-        new("Tickets", "users", typeof(UsersPage)),
-        new("Generar", "generate", typeof(GeneratePage)),
-        new("Perfiles", "profiles", typeof(ProfilesPage)),
-        new("Interfaces", "interfaces", typeof(InterfacesPage)),
-        new("Histórico", "history", typeof(TicketHistoryPage)),
+        new("Inicio", "home", typeof(MainMenuPage), "nav_home.png"),
+        new("Tickets", "users", typeof(UsersPage), "nav_tickets.png"),
+        new("Generar", "generate", typeof(GeneratePage), "nav_generate.png"),
+        new("Perfiles", "profiles", typeof(ProfilesPage), "nav_profiles.png"),
+        new("Interfaces", "interfaces", typeof(InterfacesPage), "nav_interfaces.png"),
+        new("Histórico", "history", typeof(TicketHistoryPage), "nav_history.png"),
     ];
 
     /// <summary>Todas las páginas que el shell necesita resolver, para registrarlas de una vez.</summary>

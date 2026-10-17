@@ -157,12 +157,11 @@ public static class TicketPdfWriter
             height += 11;                    // red (o marca)
         height += 28;                        // código
         height += ThermalQrSize(batch) + 4;  // QR
+        height += 16;                        // precio y duración
         return height + Padding;
     }
 
-    /// <summary>La tarjeta reduce lo que el cliente necesita a tres datos: red, clave y QR de
-    /// conexión. Todo lo demás (perfil, precio, fecha, portal) vive en el encabezado de la hoja
-    /// y en el histórico, no repetido en cada tarjeta.</summary>
+    /// <summary>La tarjeta concentra lo que el cliente necesita: red, clave, QR, precio y duración.</summary>
     private static bool HasTitle(TicketBatchExport batch) =>
         !string.IsNullOrWhiteSpace(batch.Ssid) || !string.IsNullOrWhiteSpace(batch.Brand);
 
@@ -216,8 +215,22 @@ public static class TicketPdfWriter
         Text(sb, x + padding, cursor - codeSize, codeSize, ticket.Name, bold: true, centerX: x + width / 2);
         cursor -= thermal ? 28 : 19;
 
-        var qrSize = thermal ? ThermalQrSize(batch) : Math.Min(68, inner);
+        var qrSize = thermal ? ThermalQrSize(batch) : Math.Min(64, inner);
         Qr(sb, x + (width - qrSize) / 2, cursor - qrSize, qrSize, batch.QrPayloadFor(ticket));
+        cursor -= qrSize + (thermal ? 4 : 0);
+
+        var details = Details(batch);
+        var detailsSize = thermal ? 10.5 : FittedSize(details, inner, 7.5, 5.5);
+        Text(sb, x + padding, cursor - detailsSize, detailsSize, details, bold: true, centerX: x + width / 2);
+    }
+
+    /// <summary>Precio y duración bajo el QR; el precio se omite en lotes antiguos sin ese dato.</summary>
+    private static string Details(TicketBatchExport batch)
+    {
+        var duration = "Duración: " + batch.DurationText;
+        return batch.Price is { } price
+            ? "$ " + price.ToString("0.00", CultureInfo.InvariantCulture) + " · " + duration
+            : duration;
     }
 
     private static double ThermalQrSize(TicketBatchExport batch)

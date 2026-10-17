@@ -25,6 +25,10 @@
               ForegroundFile="Resources/Icons/appiconfg.svg" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Iconos de la barra de navegación; Shell los referencia por el .png generado del SVG. -->
+    <MauiImage Include="Resources/Images/*.svg" />
+  </ItemGroup>
+  <ItemGroup>
     <MauiAsset Include="Resources/Icons/favicon.ico" />
     <MauiAsset Include="Resources/Icons/appicon.ico" />
     <MauiAsset Include="Resources/Icons/StoreLogo.png" />

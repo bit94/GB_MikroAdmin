@@ -3,6 +3,7 @@
        xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
        x:Class="GB.MikroAdmin.AppShell"
        BackgroundColor="#0B1626"
+       FlyoutBehavior="Disabled"
        FlyoutBackgroundColor="#0B1626"
        Shell.BackgroundColor="#0B1626"
        Shell.DisabledColor="#64748B"
