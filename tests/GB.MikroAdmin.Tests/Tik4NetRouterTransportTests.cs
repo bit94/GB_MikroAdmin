@@ -97,6 +97,77 @@ public sealed class Tik4NetRouterTransportTests
     }
 
     [Fact]
+    public async Task UpdateProfile_resolves_the_id_and_preserves_the_comment_notes()
+    {
+        var session = new FakeSession
+        {
+            Rows =
+            {
+                ["/ip/hotspot/user/profile/print"] =
+                [
+                    Row((".id", "*5"), ("name", "plan"), ("comment", "mostrador GBM:voucher-duration=1h promo"))
+                ]
+            }
+        };
+
+        await using var transport = await ConnectAsync(session);
+        await transport.UpdateProfileAsync("plan", "4M/4M", TimeSpan.FromHours(2), CancellationToken.None);
+
+        var call = Assert.Single(session.Executions);
+        Assert.Equal("/ip/hotspot/user/profile/set", call.Command);
+        Assert.Equal("*5", call.Parameters["numbers"]);
+        Assert.Equal("4M/4M", call.Parameters["rate-limit"]);
+        Assert.Equal("mostrador GBM:voucher-duration=2h promo", call.Parameters["comment"]);
+    }
+
+    [Fact]
+    public async Task UpdateProfile_fails_when_the_profile_no_longer_exists()
+    {
+        var session = new FakeSession();
+        await using var transport = await ConnectAsync(session);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => transport.UpdateProfileAsync("plan", "4M/4M", TimeSpan.FromHours(2), CancellationToken.None));
+        Assert.Empty(session.Executions);
+    }
+
+    [Fact]
+    public async Task RemoveProfile_resolves_the_id_and_sends_a_remove()
+    {
+        var session = new FakeSession
+        {
+            Rows =
+            {
+                ["/ip/hotspot/user/profile/print"] =
+                [
+                    Row((".id", "*5"), ("name", "plan")),
+                    Row((".id", "*6"), ("name", "otro"))
+                ]
+            }
+        };
+
+        await using var transport = await ConnectAsync(session);
+        var removed = await transport.RemoveProfileAsync("plan", CancellationToken.None);
+
+        Assert.Equal(1, removed);
+        var call = Assert.Single(session.Executions);
+        Assert.Equal("/ip/hotspot/user/profile/remove", call.Command);
+        Assert.Equal("*5", call.Parameters["numbers"]);
+    }
+
+    [Fact]
+    public async Task RemoveProfile_ignores_a_profile_that_no_longer_exists()
+    {
+        var session = new FakeSession();
+        await using var transport = await ConnectAsync(session);
+
+        var removed = await transport.RemoveProfileAsync("plan", CancellationToken.None);
+
+        Assert.Equal(0, removed);
+        Assert.Empty(session.Executions);
+    }
+
+    [Fact]
     public async Task Users_reads_limit_and_uptime_from_routeros_notation()
     {
         var session = new FakeSession
@@ -150,33 +221,15 @@ public sealed class Tik4NetRouterTransportTests
     }
 
     [Fact]
-    public async Task Connect_runs_the_certificate_check_before_opening()
+    public async Task Connect_opens_the_session_with_the_requested_settings()
     {
-        var checkedCalled = false;
         var factory = new FakeSessionFactory();
-        await using var transport = new Tik4NetRouterTransport(factory, (_, _) =>
-        {
-            checkedCalled = true;
-            return Task.CompletedTask;
-        });
+        await using var transport = new Tik4NetRouterTransport(factory);
 
         await transport.ConnectAsync(RealSettings, CancellationToken.None);
 
-        Assert.True(checkedCalled);
         Assert.True(factory.Opened);
-    }
-
-    [Fact]
-    public async Task Connect_fails_closed_when_the_certificate_is_rejected()
-    {
-        var factory = new FakeSessionFactory();
-        await using var transport = new Tik4NetRouterTransport(factory, (_, _) =>
-            throw new System.Security.Authentication.AuthenticationException("Certificado no confiable."));
-
-        await Assert.ThrowsAsync<System.Security.Authentication.AuthenticationException>(
-            () => transport.ConnectAsync(RealSettings, CancellationToken.None));
-        // Nada debe abrirse si la validación falla.
-        Assert.False(factory.Opened);
+        Assert.Equal(RealSettings, factory.Settings);
     }
 
     [Fact]
@@ -234,9 +287,12 @@ public sealed class Tik4NetRouterTransportTests
     {
         public bool Opened { get; private set; }
 
+        public RouterSettings? Settings { get; private set; }
+
         public Task<ITikSession> OpenAsync(RouterSettings settings, CancellationToken cancellationToken)
         {
             Opened = true;
+            Settings = settings;
             return Task.FromResult(session ?? new FakeSession());
         }
     }

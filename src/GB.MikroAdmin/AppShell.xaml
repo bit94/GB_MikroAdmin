@@ -1,2 +1,16 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui" xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" x:Class="GB.MikroAdmin.AppShell" />
+<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       x:Class="GB.MikroAdmin.AppShell"
+       BackgroundColor="#0B1626"
+       FlyoutBackgroundColor="#0B1626"
+       Shell.BackgroundColor="#0B1626"
+       Shell.DisabledColor="#64748B"
+       Shell.ForegroundColor="#F8FAFC"
+       Shell.NavBarHasShadow="False"
+       Shell.TabBarBackgroundColor="#132033"
+       Shell.TabBarForegroundColor="#F8FAFC"
+       Shell.TabBarTitleColor="#F8FAFC"
+       Shell.TabBarUnselectedColor="#94A3B8"
+       Shell.TitleColor="#F8FAFC"
+       Shell.UnselectedColor="#94A3B8" />

@@ -21,10 +21,11 @@ planas. El modo real exige API-SSL/TLS (normalmente el puerto `8729`). Configure
 certificado de confianza y `api-ssl`; no exponga la API normal (`8728`) a Internet. Restrinja el
 servicio con firewall o VPN y use una cuenta con privilegios mínimos.
 
-Antes de conectar con tik4net, `RouterCertificateValidator` abre un handshake TLS y rechaza de
-forma cerrada los certificados no confiables, revocados, vencidos o cuyo SAN no coincide con el
-host. Para IPs, el certificado debe incluir esa IP en su SAN. Como defensa adicional se recomienda
-usar VPN (WireGuard/IPsec), firewall, y permitir exclusivamente la CA corporativa.
+La validación se aplica al mismo socket API-SSL que autentica las credenciales: se exige una
+cadena de confianza, un nombre (SAN/CN) que coincida con el host y consulta de revocación en
+línea. Los certificados autofirmados, vencidos o con nombre incorrecto se rechazan de forma
+cerrada. Para IPs, el certificado debe incluir esa IP en su SAN. Como defensa adicional se
+recomienda usar VPN (WireGuard/IPsec), firewall, y permitir exclusivamente la CA corporativa.
 
 ## Ejecutar
 

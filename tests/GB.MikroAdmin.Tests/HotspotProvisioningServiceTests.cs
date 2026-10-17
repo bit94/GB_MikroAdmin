@@ -89,11 +89,11 @@ public sealed class HotspotProvisioningServiceTests
     }
 
     /// <summary>
-    /// Si el router rechaza un usuario a mitad del lote, los códigos ya creados no deben
-    /// perderse: se devuelven junto al fallo para que el operador pueda entregarlos.
+    /// Si el router rechaza un usuario por un fallo sistémico, los códigos ya creados no deben
+    /// perderse y el lote debe detenerse en lugar de repetir el mismo error cien veces.
     /// </summary>
     [Fact]
-    public async Task CreateBatch_reports_partial_failure_without_losing_created_tickets()
+    public async Task CreateBatch_aborts_on_a_systemic_failure_without_losing_created_tickets()
     {
         var router = new RecordingWriter { RejectFrom = 2 };
         var service = new HotspotProvisioningService(router, new SequentialCodes(200_000));
@@ -101,10 +101,57 @@ public sealed class HotspotProvisioningServiceTests
         var exception = await Assert.ThrowsAsync<TicketBatchException>(
             () => service.CreateBatchAsync(3, "limitado", TimeSpan.FromHours(1)));
 
-        // El primero entró, el segundo y el tercero fueron rechazados por el router.
+        // El primero entró; el segundo falló y el tercero ya no se intentó.
         Assert.Single(exception.Created);
         Assert.Equal("200000", exception.Created[0].Name);
-        Assert.Equal(2, exception.Failed.Count);
+        Assert.Single(exception.Failed);
+        Assert.Equal(1, exception.NotAttempted);
+        Assert.Equal("El router rechazó el usuario.", exception.Reason);
+    }
+
+    [Fact]
+    public async Task CreateBatch_aborts_on_a_connection_failure()
+    {
+        var router = new ConnectionFailureWriter("100001");
+        var service = new HotspotProvisioningService(router, new SequentialCodes(100_000));
+
+        var exception = await Assert.ThrowsAsync<TicketBatchException>(
+            () => service.CreateBatchAsync(10, "limitado", TimeSpan.FromHours(1)));
+
+        Assert.Single(exception.Created);
+        Assert.Single(exception.Failed);
+        Assert.Equal(8, exception.NotAttempted);
+        Assert.Equal("Se perdió la conexión con el router.", exception.Reason);
+        Assert.Equal(2, router.Attempts);
+    }
+
+    [Fact]
+    public async Task CreateBatch_retries_a_code_that_already_exists_in_the_router()
+    {
+        var router = new DuplicateOnceWriter("200000");
+        var service = new HotspotProvisioningService(router, new SequentialCodes(200_000));
+
+        var created = await service.CreateBatchAsync(2, "limitado", TimeSpan.FromHours(1));
+
+        Assert.Equal(2, created.Count);
+        Assert.DoesNotContain(created, ticket => ticket.Name == "200000");
+        Assert.Equal(3, router.Attempts);
+    }
+
+    [Fact]
+    public async Task CreateBatch_gives_up_on_a_code_after_the_retry_limit()
+    {
+        var router = new DuplicateWriter();
+        var service = new HotspotProvisioningService(router, new SequentialCodes(300_000));
+
+        var exception = await Assert.ThrowsAsync<TicketBatchException>(
+            () => service.CreateBatchAsync(1, "limitado", TimeSpan.FromHours(1)));
+
+        Assert.Empty(exception.Created);
+        Assert.Single(exception.Failed);
+        Assert.Equal(0, exception.NotAttempted);
+        Assert.Contains("ya existía", exception.Reason);
+        Assert.Equal(HotspotProvisioningService.CodeAttempts + 1, router.Attempts);
     }
 
     [Fact]
@@ -133,9 +180,9 @@ public sealed class HotspotProvisioningServiceTests
         Assert.All(reports, r => Assert.Equal(4, r.Total));
     }
 
-    /// <summary>El avance llega hasta el total aunque el router rechace usuarios por el camino.</summary>
+    /// <summary>El avance llega hasta el total aunque el lote se detenga por un fallo.</summary>
     [Fact]
-    public async Task CreateBatch_still_reports_full_progress_when_some_fail()
+    public async Task CreateBatch_still_reports_full_progress_when_it_stops_early()
     {
         var router = new RecordingWriter { RejectFrom = 2 };
         var service = new HotspotProvisioningService(router, new SequentialCodes(500_000));
@@ -204,6 +251,53 @@ public sealed class HotspotProvisioningServiceTests
 
             Writes.Add((name, password, profile, limit));
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class ConnectionFailureWriter(string failCode) : IRouterUserWriter
+    {
+        public int Attempts { get; private set; }
+
+        public Task AddUserAsync(string name, string password, string profile, TimeSpan limit, CancellationToken cancellationToken = default)
+        {
+            Attempts++;
+            if (name == failCode)
+                throw new RouterWriteException(
+                    RouterWriteFailureKind.Connection, "Se perdió la conexión con el router.");
+
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class DuplicateOnceWriter(string duplicate) : IRouterUserWriter
+    {
+        private bool _rejected;
+
+        public int Attempts { get; private set; }
+
+        public Task AddUserAsync(string name, string password, string profile, TimeSpan limit, CancellationToken cancellationToken = default)
+        {
+            Attempts++;
+            if (!_rejected && name == duplicate)
+            {
+                _rejected = true;
+                throw new RouterWriteException(
+                    RouterWriteFailureKind.Duplicate, "El código ya existe en el router.");
+            }
+
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class DuplicateWriter : IRouterUserWriter
+    {
+        public int Attempts { get; private set; }
+
+        public Task AddUserAsync(string name, string password, string profile, TimeSpan limit, CancellationToken cancellationToken = default)
+        {
+            Attempts++;
+            throw new RouterWriteException(
+                RouterWriteFailureKind.Duplicate, "El código ya existe en el router.");
         }
     }
 

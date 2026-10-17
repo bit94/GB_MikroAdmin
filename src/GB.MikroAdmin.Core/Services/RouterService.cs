@@ -57,6 +57,12 @@ public sealed class RouterService : IRouterService, IRouterUserWriter
     public Task AddProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken = default)
         => Connected().AddProfileAsync(name, rateLimit, ticketDuration, cancellationToken);
 
+    public Task UpdateProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken = default)
+        => Connected().UpdateProfileAsync(name, rateLimit, ticketDuration, cancellationToken);
+
+    public Task<int> RemoveProfileAsync(string name, CancellationToken cancellationToken = default)
+        => Connected().RemoveProfileAsync(name, cancellationToken);
+
     public Task<int> RemoveUsersAsync(IReadOnlyList<string> names, CancellationToken cancellationToken = default)
         => Connected().RemoveUsersAsync(names, cancellationToken);
 
@@ -90,6 +96,8 @@ public interface IRouterService : IAsyncDisposable
     Task<IReadOnlyList<HotspotProfile>> GetProfilesAsync(CancellationToken cancellationToken = default);
     Task AddUserAsync(string name, string password, string profile, TimeSpan limit, CancellationToken cancellationToken = default);
     Task AddProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken = default);
+    Task UpdateProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken = default);
+    Task<int> RemoveProfileAsync(string name, CancellationToken cancellationToken = default);
     Task<int> RemoveUsersAsync(IReadOnlyList<string> names, CancellationToken cancellationToken = default);
     Task DisconnectAsync();
 }

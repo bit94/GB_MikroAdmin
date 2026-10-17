@@ -2,7 +2,11 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:GB.MikroAdmin.Views"
+             xmlns:vm="clr-namespace:GB.MikroAdmin.ViewModels"
+             xmlns:models="clr-namespace:GB.MikroAdmin.Core.Models;assembly=GB.MikroAdmin.Core"
+             xmlns:services="clr-namespace:GB.MikroAdmin.Core.Services;assembly=GB.MikroAdmin.Core"
              x:Class="GB.MikroAdmin.Views.GeneratePage"
+             x:DataType="vm:UsersViewModel"
              Title="Generar tickets">
 
   <ContentPage.Resources>
@@ -10,90 +14,131 @@
   </ContentPage.Resources>
 
   <ScrollView>
-    <VerticalStackLayout Padding="12" Spacing="10">
+    <VerticalStackLayout Padding="16,12,16,24" Spacing="16">
 
-      <Border Style="{StaticResource Card}" BackgroundColor="{StaticResource SurfaceAlt}">
-        <VerticalStackLayout Spacing="1">
-          <Label Text="Conectado a" Style="{StaticResource Caption}" />
-          <Label Text="{Binding Connection.Display}" FontAttributes="Bold" />
+      <VerticalStackLayout Spacing="2">
+        <Label Text="Nuevo lote" Style="{StaticResource PageTitle}" />
+        <Label Text="{Binding Connection.Display, StringFormat='Router {0}'}" Style="{StaticResource Caption}" />
+      </VerticalStackLayout>
+
+      <Border Style="{StaticResource Card}">
+        <VerticalStackLayout Spacing="16">
+          <Label Text="Cada ticket usa el mismo código como usuario y contraseña."
+                 Style="{StaticResource Caption}" />
+
+          <VerticalStackLayout Spacing="6">
+            <Label Text="Perfil" Style="{StaticResource FieldLabel}" />
+            <Border Style="{StaticResource InputBorder}">
+              <Picker Title="Elegir perfil" ItemsSource="{Binding Profiles}"
+                      ItemDisplayBinding="{Binding Name, x:DataType=models:HotspotProfile}"
+                      SelectedItem="{Binding SelectedProfile}" BackgroundColor="Transparent" />
+            </Border>
+            <Label Text="{Binding SelectedProfileDurationText}" Style="{StaticResource Caption}" />
+          </VerticalStackLayout>
+
+          <Grid ColumnDefinitions="110,*" ColumnSpacing="12">
+            <VerticalStackLayout Spacing="6">
+              <Label Text="Cantidad" Style="{StaticResource FieldLabel}" />
+              <Border Style="{StaticResource InputBorder}">
+                <Entry Placeholder="1 a 100" Keyboard="Numeric" Text="{Binding BatchQuantity}"
+                       BackgroundColor="Transparent" />
+              </Border>
+            </VerticalStackLayout>
+            <Button Grid.Column="1" Text="{Binding GenerateButtonText}" Style="{StaticResource PrimaryButton}"
+                    Command="{Binding CreateBatchCommand}"
+                    IsEnabled="{Binding IsGenerating, Converter={StaticResource Invert}}"
+                    VerticalOptions="End" />
+          </Grid>
+
+          <VerticalStackLayout Spacing="6">
+            <Label Text="Datos para la tarjeta (opcional)" Style="{StaticResource FieldLabel}" />
+            <Label Text="Se imprimen junto al QR del ticket." Style="{StaticResource Caption}" />
+            <Border Style="{StaticResource InputBorder}">
+              <Entry Placeholder="Red Wi-Fi, ej. GB_nextGen_PA01" Text="{Binding TicketSsid}"
+                     BackgroundColor="Transparent" />
+            </Border>
+            <Border Style="{StaticResource InputBorder}">
+              <Entry Placeholder="Precio, ej. 15" Keyboard="Numeric" Text="{Binding TicketPrice}"
+                     BackgroundColor="Transparent" />
+            </Border>
+          </VerticalStackLayout>
+
+          <!-- Progreso y cancelación: un lote de 100 tarda minutos y antes no había forma de pararlo. -->
+          <VerticalStackLayout IsVisible="{Binding IsGenerating}" Spacing="6">
+            <ProgressBar Progress="{Binding ProgressPercent}" ProgressColor="{StaticResource Primary}" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <Label Text="{Binding ProgressText}" Style="{StaticResource Caption}" VerticalOptions="Center" />
+              <Button Grid.Column="1" Text="Cancelar lote" Style="{StaticResource DangerTextButton}"
+                      Command="{Binding CancelBatchCommand}" />
+            </Grid>
+          </VerticalStackLayout>
         </VerticalStackLayout>
       </Border>
 
-      <Label Text="Nuevo lote" Style="{StaticResource SectionTitle}" />
-      <Label Text="Cada ticket usa el mismo código como usuario y contraseña, para poder entregarlo con un solo dato."
-             Style="{StaticResource Caption}" />
-
-      <Picker Title="Perfil" ItemsSource="{Binding Profiles}" ItemDisplayBinding="{Binding Name}" SelectedItem="{Binding SelectedProfile}" />
-      <Label Text="{Binding SelectedProfile.TicketDuration, StringFormat='Duración por ticket: {0:g}'}"
-             Style="{StaticResource Caption}" />
-
-      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-        <Entry Placeholder="Cantidad (1 a 100)" Keyboard="Numeric" Text="{Binding BatchQuantity}" />
-        <Button Grid.Column="1" Text="Generar" Command="{Binding CreateBatchCommand}"
-                IsEnabled="{Binding IsGenerating, Converter={StaticResource Invert}}" Padding="18,6" />
-      </Grid>
-
-      <!-- Datos que se imprimen en la tarjeta; todos opcionales y se guardan con el lote. -->
-      <Label Text="Datos para la tarjeta (opcionales)" Style="{StaticResource Caption}" Margin="0,2,0,0" />
-      <Grid ColumnDefinitions="*,*" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="8">
-        <Entry Placeholder="Marca (ej. NextGen)" Text="{Binding TicketBrand}" />
-        <Entry Grid.Column="1" Placeholder="Wi-Fi (ej. GB_nextGen_PA01)" Text="{Binding TicketSsid}" />
-        <Entry Grid.Row="1" Placeholder="Precio (ej. 15)" Keyboard="Numeric" Text="{Binding TicketPrice}" />
-        <Entry Grid.Row="1" Grid.Column="1" Placeholder="Consulta de estado (ej. gbnextgen.mx)" Keyboard="Url" Text="{Binding TicketStatusUrl}" />
-      </Grid>
-
-      <!-- Progreso y cancelación: un lote de 100 tarda minutos y antes no había forma de pararlo. -->
-      <VerticalStackLayout IsVisible="{Binding IsGenerating}" Spacing="4">
-        <ProgressBar Progress="{Binding ProgressPercent}" ProgressColor="{StaticResource Primary}" />
-        <Grid ColumnDefinitions="*,Auto">
-          <Label Text="{Binding ProgressText}" Style="{StaticResource Caption}" />
-          <Button Grid.Column="1" Text="Cancelar" Command="{Binding CancelBatchCommand}"
-                  Style="{StaticResource DangerButton}" Padding="12,4" FontSize="13" />
-        </Grid>
-      </VerticalStackLayout>
-
-      <!-- Los avisos se muestran junto a la acción y sobreviven a la siguiente operación.
-           BindableLayout en vez de CollectionView: con altura fija el texto largo quedaba cortado. -->
-      <VerticalStackLayout BindableLayout.ItemsSource="{Binding Notices}">
+      <VerticalStackLayout BindableLayout.ItemsSource="{Binding Notices}" Spacing="2">
         <BindableLayout.ItemTemplate>
-          <DataTemplate>
+          <DataTemplate x:DataType="vm:Notice">
             <Label Text="{Binding Text}" FontSize="13"
                    TextColor="{Binding Severity, Converter={StaticResource NoticeColor}}" />
           </DataTemplate>
         </BindableLayout.ItemTemplate>
       </VerticalStackLayout>
 
-      <Label Text="Códigos generados" Style="{StaticResource SectionTitle}" />
-      <Label Text="Se guardan en el histórico, así que puedes cerrar la aplicación y recuperarlos después."
-             Style="{StaticResource Caption}" />
+      <VerticalStackLayout Spacing="10">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+            <Label Text="Códigos generados" Style="{StaticResource SectionTitle}" Margin="0" />
+            <Label Text="{Binding GeneratedCountText}" Style="{StaticResource Caption}"
+                   IsVisible="{Binding CanExport}" />
+          </VerticalStackLayout>
+          <Button Grid.Column="1" Text="Limpiar" Style="{StaticResource GhostButton}"
+                  Command="{Binding ClearGeneratedCommand}" IsEnabled="{Binding CanExport}"
+                  VerticalOptions="Center" />
+        </Grid>
 
-      <VerticalStackLayout BindableLayout.ItemsSource="{Binding Generated}">
-        <BindableLayout.EmptyView>
-          <Label Text="Aún no has generado tickets." Style="{StaticResource Caption}" Margin="0,20" HorizontalOptions="Center" />
-        </BindableLayout.EmptyView>
-        <BindableLayout.ItemTemplate>
-          <DataTemplate>
-            <Border Style="{StaticResource Card}" Margin="0,0,0,4" Padding="10">
-              <Grid ColumnDefinitions="*,Auto">
-                <Label Text="{Binding Name}" Style="{StaticResource Mono}" />
-                <Label Grid.Column="1" Text="usuario + contraseña" Style="{StaticResource Caption}" VerticalOptions="Center" />
-              </Grid>
-            </Border>
-          </DataTemplate>
-        </BindableLayout.ItemTemplate>
+        <!-- Las acciones de entrega van antes de la lista para no quedar bajo cientos de códigos. -->
+        <VerticalStackLayout Spacing="8" IsVisible="{Binding CanExport}">
+          <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
+            <Button Text="Imprimir" Style="{StaticResource PrimaryButton}" HeightRequest="44"
+                    Command="{Binding PrintCommand}" IsEnabled="{Binding CanExport}"
+                    Padding="8,0" FontSize="13" />
+            <Button Grid.Column="1" Text="PDF" Style="{StaticResource SecondaryButton}"
+                    Command="{Binding ShareCommand}" IsEnabled="{Binding CanExport}"
+                    Padding="8,0" FontSize="13" />
+            <Button Grid.Column="2" Text="CSV" Style="{StaticResource SecondaryButton}"
+                    Command="{Binding ExportCsvCommand}" IsEnabled="{Binding CanExport}"
+                    Padding="8,0" FontSize="13" />
+            <Button Grid.Column="3" Text="HTML" Style="{StaticResource SecondaryButton}"
+                    Command="{Binding ShareHtmlCommand}" IsEnabled="{Binding CanExport}"
+                    Padding="8,0" FontSize="13" />
+          </Grid>
+          <Label Text="Imprimir genera tarjetas con QR, 30 por hoja carta. CSV para Excel; PDF y HTML para compartir."
+                 Style="{StaticResource Caption}" />
+        </VerticalStackLayout>
+
+        <FlexLayout Wrap="Wrap" Direction="Row" AlignItems="Start"
+                    BindableLayout.ItemsSource="{Binding Generated}">
+          <BindableLayout.EmptyView>
+            <Label Text="Los códigos aparecerán aquí después de generar el lote."
+                   Style="{StaticResource Caption}" Margin="0,16" HorizontalOptions="Center" />
+          </BindableLayout.EmptyView>
+          <BindableLayout.ItemTemplate>
+            <DataTemplate x:DataType="services:CreatedHotspotUser">
+              <Border Style="{StaticResource Card}" Padding="10,8" Margin="2"
+                      FlexLayout.Basis="48%" FlexLayout.Grow="1">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                  <Label Text="{Binding Name}" Style="{StaticResource Mono}" FontSize="15"
+                         LineBreakMode="TailTruncation" VerticalOptions="Center" />
+                  <Button Grid.Column="1" Text="Copiar" Style="{StaticResource GhostButton}"
+                          HeightRequest="30" MinimumHeightRequest="30" Padding="8,0" FontSize="12"
+                          Command="{Binding Source={RelativeSource AncestorType={x:Type vm:UsersViewModel}}, Path=CopyGeneratedCommand, x:DataType=vm:UsersViewModel}"
+                          CommandParameter="{Binding .}" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </BindableLayout.ItemTemplate>
+        </FlexLayout>
       </VerticalStackLayout>
-
-      <Label Text="Entregar" Style="{StaticResource SectionTitle}" />
-      <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
-        <Button Text="CSV" Command="{Binding ExportCsvCommand}" IsEnabled="{Binding CanExport}" Padding="8,6" />
-        <Button Grid.Column="1" Text="Imprimir" Command="{Binding PrintCommand}" IsEnabled="{Binding CanExport}" Padding="8,6" />
-        <Button Grid.Column="2" Text="PDF" Command="{Binding ShareCommand}" IsEnabled="{Binding CanExport}" Padding="8,6" />
-        <Button Grid.Column="3" Text="HTML" Command="{Binding ShareHtmlCommand}" IsEnabled="{Binding CanExport}" Padding="8,6" />
-      </Grid>
-      <Label Text="CSV para Excel. Imprimir genera tarjetas con QR de conexión Wi-Fi, 30 por hoja carta; en el histórico también puedes imprimir de uno en uno para térmica. HTML es un archivo editable que reimprimes desde el navegador."
-             Style="{StaticResource Caption}" />
-
-      <Button Text="Limpiar códigos en pantalla" Command="{Binding ClearGeneratedCommand}" Style="{StaticResource Caption}" />
     </VerticalStackLayout>
   </ScrollView>
 </ContentPage>

@@ -12,6 +12,27 @@ public static class ProfileMarker
 
     public static string Build(TimeSpan ticketDuration) => Prefix + RouterOsTime.ToRouterOs(ticketDuration);
 
+    /// <summary>
+    /// Reescribe la duración del comentario conservando las notas que el administrador haya
+    /// escrito antes o después del marcador.
+    /// </summary>
+    public static string WithDuration(string? comment, TimeSpan ticketDuration)
+    {
+        var marker = Build(ticketDuration);
+        if (string.IsNullOrWhiteSpace(comment))
+            return marker;
+
+        var start = comment.IndexOf(Prefix, StringComparison.Ordinal);
+        if (start < 0)
+            return $"{comment.TrimEnd()} {marker}";
+
+        var valueEnd = start + Prefix.Length;
+        while (valueEnd < comment.Length && !char.IsWhiteSpace(comment[valueEnd]))
+            valueEnd++;
+
+        return comment[..start] + marker + comment[valueEnd..];
+    }
+
     /// <summary>Devuelve la duración marcada, o <c>null</c> si el comentario no la declara.</summary>
     public static TimeSpan? ReadTicketDuration(string? comment)
     {

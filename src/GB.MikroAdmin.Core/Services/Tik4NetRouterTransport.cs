@@ -8,13 +8,11 @@ namespace GB.MikroAdmin.Core.Services;
 /// </summary>
 public sealed class Tik4NetRouterTransport : IRouterTransport
 {
-    private readonly Func<RouterSettings, CancellationToken, Task>? _certificateCheck;
     private ITikSession? _session;
 
-    public Tik4NetRouterTransport(ITikSessionFactory sessionFactory, Func<RouterSettings, CancellationToken, Task>? certificateCheck = null)
+    public Tik4NetRouterTransport(ITikSessionFactory sessionFactory)
     {
         SessionFactory = sessionFactory;
-        _certificateCheck = certificateCheck;
     }
 
     public ITikSessionFactory SessionFactory { get; }
@@ -30,10 +28,7 @@ public sealed class Tik4NetRouterTransport : IRouterTransport
 
         await DisposeSessionAsync();
 
-        // Se valida la cadena, la revocación y el SAN antes de entregar la conexión a tik4net.
-        if (_certificateCheck is not null)
-            await _certificateCheck(settings, cancellationToken);
-
+        // La validación del certificado vive en la fábrica, sobre el socket que abre tik4net.
         _session = await SessionFactory.OpenAsync(settings, cancellationToken);
     }
 
@@ -93,6 +88,41 @@ public sealed class Tik4NetRouterTransport : IRouterTransport
                 ["shared-users"] = "1",
                 ["comment"] = ProfileMarker.Build(ticketDuration)
             }, cancellationToken);
+
+    /// <summary>
+    /// Actualiza velocidad y duración sin tocar el nombre: los tickets existentes lo referencian.
+    /// El comentario se reescribe con el marcador conservando las notas del administrador.
+    /// </summary>
+    public async Task UpdateProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken)
+    {
+        var session = Connected();
+        var row = await FindProfileAsync(session, name, cancellationToken)
+            ?? throw new InvalidOperationException($"El perfil «{name}» ya no existe en el router.");
+
+        await session.ExecuteAsync("/ip/hotspot/user/profile/set",
+            new Dictionary<string, string>
+            {
+                ["numbers"] = row.GetString(".id"),
+                ["rate-limit"] = rateLimit,
+                ["comment"] = ProfileMarker.WithDuration(row.GetStringOrNull("comment"), ticketDuration)
+            }, cancellationToken);
+    }
+
+    public async Task<int> RemoveProfileAsync(string name, CancellationToken cancellationToken)
+    {
+        var session = Connected();
+        var row = await FindProfileAsync(session, name, cancellationToken);
+        if (row is null)
+            return 0;
+
+        await session.ExecuteAsync("/ip/hotspot/user/profile/remove",
+            new Dictionary<string, string> { ["numbers"] = row.GetString(".id") }, cancellationToken);
+        return 1;
+    }
+
+    private static async Task<ITikRow?> FindProfileAsync(ITikSession session, string name, CancellationToken cancellationToken)
+        => (await session.ListAsync("/ip/hotspot/user/profile/print", cancellationToken))
+            .FirstOrDefault(r => string.Equals(r.GetStringOrNull("name"), name, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Elimina por <c>.id</c>, que es lo que acepta <c>numbers</c>: pasar nombres fallaba contra

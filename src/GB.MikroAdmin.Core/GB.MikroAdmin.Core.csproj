@@ -7,4 +7,7 @@
   <ItemGroup>
     <PackageReference Include="QRCoder" Version="1.8.0" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="GB.MikroAdmin.Tests" />
+  </ItemGroup>
 </Project>

@@ -13,6 +13,8 @@ Leyenda: `[x]` hecho · `[ ]` pendiente
 - [x] Extraer modelos y lógica pura a `GB.MikroAdmin.Core` (`net10.0`)
 - [x] `global.json` fijando el SDK 10
 - [x] CI en GitHub Actions: compilación y pruebas en cada push
+- [x] Reconstrucción limpia de Windows con `-warnaserror` sin advertencias
+- [x] Histórico local con escritura atómica, respaldo y recuperación ante corrupción
 - [x] Verificar que `*.user` no está trackeado (ya estaba ignorado)
 
 ## Fase 1 — Que el modo real funcione
@@ -23,6 +25,7 @@ Leyenda: `[x]` hecho · `[ ]` pendiente
 - [x] `ParseTime` fallando de forma explícita en lugar de devolver cero
 - [x] Corregir las rutas `//interfaces` y `//users` del menú
 - [x] Eliminar `DashboardPage` y sus enlaces rotos
+- [x] Validar el certificado en el mismo socket API-SSL que autentica (nombre, cadena y revocación)
 - [ ] **Probar contra un router real** (api-ssl, puerto 8729, certificado de confianza).
       Pendiente: hoy solo hay modo simulado.
 
@@ -35,7 +38,8 @@ Leyenda: `[x]` hecho · `[ ]` pendiente
 - [x] PDF imprimible de tickets (código, perfil, duración, fecha)
 - [x] Compartir el lote desde el móvil
 - [x] Cancelación y progreso real durante la creación de un lote largo
-- [ ] Recordar la última cantidad y el último perfil usados al abrir la aplicación
+- [x] Recordar la última cantidad, el último perfil, la red Wi-Fi y el precio usados
+- [x] Reintentar códigos duplicados y abortar el lote ante fallos sistémicos conservando lo creado
 
 ## Fase 3 — Administración diaria
 
@@ -43,6 +47,8 @@ Leyenda: `[x]` hecho · `[ ]` pendiente
 - [x] Refresco automático del tiempo restante cada 30 s
 - [x] Indicador de router conectado y botón de desconexión
 - [x] Avisos con severidad
+- [x] Selección de fila y confirmación antes de borrados masivos o del histórico
+- [x] Crear, editar y eliminar perfiles (velocidad y duración del ticket)
 - [ ] Suspender o reactivar un ticket sin borrarlo
 - [ ] Extender el tiempo de un ticket existente
 - [ ] Añadir tiempo en bloque a los tickets de un perfil
@@ -72,7 +78,8 @@ Leyenda: `[x]` hecho · `[ ]` pendiente
 
 RouterOS debe tener `api-ssl` habilitado (puerto 8729 normalmente) y un certificado de confianza.
 La aplicación **rechaza de forma cerrada** certificados autofirmados, revocados, vencidos o cuyo
-SAN no coincida con el host. Para IPs, el certificado debe incluir esa IP en su SAN.
+nombre (SAN/CN) no coincida con el host, y aplica esa comprobación al mismo socket que autentica
+las credenciales. Para IPs, el certificado debe incluir esa IP en su SAN.
 
 ```routeros
 # Ejemplo de alta manual equivalente a lo que hace la aplicación

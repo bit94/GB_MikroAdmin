@@ -297,7 +297,7 @@ public sealed class TicketPdfWriterTests
             DateTimeOffset.Now, "limitado", TimeSpan.FromHours(1),
             [new CreatedHotspotUser(code, code)], StatusUrl: url);
 
-        Assert.Equal(expected, batch.QrPayloadFor(code));
+        Assert.Equal(expected, batch.QrPayloadFor(new CreatedHotspotUser(code, code)));
     }
 
     private static TicketBatchExport TicketBatchExportWith(string code) => new(
@@ -312,10 +312,9 @@ public sealed class TicketPdfWriterTests
         var lineStart = text.LastIndexOf("BT ", end, StringComparison.Ordinal);
         var line = text[lineStart..end];
 
-        var sizeIndex = line.IndexOf(" /F1 ", StringComparison.Ordinal) + 5;
-        var sizeEnd = line.IndexOf(" Tf", sizeIndex, StringComparison.Ordinal);
-
-        return double.Parse(line[sizeIndex..sizeEnd], System.Globalization.CultureInfo.InvariantCulture);
+        var tokens = line.Split(' ');
+        var fontIndex = Array.FindIndex(tokens, token => token is "/F1" or "/F2");
+        return double.Parse(tokens[fontIndex + 1], System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private static int CountOccurrences(string text, string value)

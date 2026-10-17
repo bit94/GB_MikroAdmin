@@ -95,13 +95,26 @@ public sealed record TicketBatchExport(
     /// <summary>
     /// Qué se codifica en el QR de un ticket. Con red Wi-Fi, el payload de conexión automática
     /// <c>WIFI:T:WPA;S:…;P:…;;</c>, que los móviles interpretan como «conectarse a esta red»;
-    /// sin red, el propio código, que al ser a la vez usuario y contraseña basta para entrar.
+    /// sin red, la URL de estado con el código incrustado si se configuró; en su defecto, el
+    /// propio código, que al ser a la vez usuario y contraseña basta para entrar.
     /// </summary>
     public string QrPayloadFor(CreatedHotspotUser ticket)
     {
         if (Ssid?.Trim() is { Length: > 0 } ssid)
             return $"WIFI:T:WPA;S:{WifiEscape(ssid)};P:{WifiEscape(ticket.Password)};;";
+
+        if (StatusUrl?.Trim() is { Length: > 0 } url)
+            return ComposeStatusUrl(url, ticket.Name);
+
         return ticket.Name;
+    }
+
+    private static string ComposeStatusUrl(string template, string code)
+    {
+        var encoded = Uri.EscapeDataString(code);
+        if (template.Contains("{codigo}", StringComparison.OrdinalIgnoreCase))
+            return template.Replace("{codigo}", encoded, StringComparison.OrdinalIgnoreCase);
+        return $"{template.TrimEnd('/')}/{encoded}";
     }
 
     /// <summary>El formato WIFI: exige anteponer barra invertida a \, ;, , y : dentro de los campos.</summary>

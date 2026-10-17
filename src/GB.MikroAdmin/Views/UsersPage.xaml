@@ -2,7 +2,10 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:GB.MikroAdmin.Views"
+             xmlns:vm="clr-namespace:GB.MikroAdmin.ViewModels"
+             xmlns:models="clr-namespace:GB.MikroAdmin.Core.Models;assembly=GB.MikroAdmin.Core"
              x:Class="GB.MikroAdmin.Views.UsersPage"
+             x:DataType="vm:UsersViewModel"
              Title="Tickets">
 
   <ContentPage.Resources>
@@ -37,14 +40,15 @@
       </Grid>
 
       <HorizontalStackLayout Spacing="8">
-        <Button Text="Eliminar seleccionado" Command="{Binding DeleteSelectedCommand}" Style="{StaticResource DangerButton}" Padding="12,6" />
+        <Button Text="Eliminar seleccionado" Command="{Binding DeleteSelectedCommand}"
+                IsEnabled="{Binding HasSelectedUser}" Style="{StaticResource DangerButton}" Padding="12,6" />
         <Button Text="Limpiar agotados" Command="{Binding RemoveExpiredCommand}" Padding="12,6" />
       </HorizontalStackLayout>
 
       <!-- Avisos con severidad; se conservan los últimos para poder releer un error. -->
       <VerticalStackLayout BindableLayout.ItemsSource="{Binding Notices}">
         <BindableLayout.ItemTemplate>
-          <DataTemplate>
+          <DataTemplate x:DataType="vm:Notice">
             <Label Text="{Binding Text}" FontSize="13"
                    TextColor="{Binding Severity, Converter={StaticResource NoticeColor}}"
                    Margin="0,0,0,2" />
@@ -54,12 +58,13 @@
     </VerticalStackLayout>
 
     <!-- Lista de tickets: código, perfil, tiempo restante y acción directa por fila. -->
-    <CollectionView Grid.Row="2" ItemsSource="{Binding FilteredUsers}" Margin="12,4,12,12">
+    <CollectionView Grid.Row="2" ItemsSource="{Binding FilteredUsers}" Margin="12,4,12,12"
+                    SelectionMode="Single" SelectedItem="{Binding SelectedUser}">
       <CollectionView.EmptyView>
         <Label Text="No hay tickets que coincidan." Style="{StaticResource Caption}" HorizontalOptions="Center" Margin="0,30" />
       </CollectionView.EmptyView>
       <CollectionView.ItemTemplate>
-        <DataTemplate>
+        <DataTemplate x:DataType="models:HotspotUser">
           <Border Style="{StaticResource Card}" Margin="0,0,0,6">
             <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
               <BoxView WidthRequest="4" CornerRadius="2"
@@ -77,7 +82,7 @@
               </VerticalStackLayout>
               <Button Grid.Column="3" Text="Borrar" Padding="10,4" FontSize="13"
                       Style="{StaticResource DangerButton}"
-                      Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeleteUserCommand}"
+                      Command="{Binding Source={RelativeSource AncestorType={x:Type vm:UsersViewModel}}, Path=DeleteUserCommand, x:DataType=vm:UsersViewModel}"
                       CommandParameter="{Binding .}" />
             </Grid>
           </Border>

@@ -4,6 +4,6 @@
      colorPrimary, así que el fondo de la pantalla de arranque queda azul oscuro. -->
 <resources>
   <color name="colorPrimary">#2563EB</color>
-  <color name="colorPrimaryDark">#1E3A8A</color>
+  <color name="colorPrimaryDark">#0B1626</color>
   <color name="colorAccent">#2563EB</color>
 </resources>

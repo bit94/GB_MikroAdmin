@@ -5,19 +5,38 @@ using GB.MikroAdmin.Core.Services;
 
 namespace GB.MikroAdmin.ViewModels;
 
-/// <summary>Alta y consulta de perfiles de Hotspot y su ancho de banda.</summary>
+/// <summary>Alta, edición y baja de perfiles de Hotspot y su ancho de banda.</summary>
 public sealed class ProfilesViewModel : PageViewModel
 {
+    private const string DefaultRateLimit = "2M/2M";
+    private const string DefaultTicketDuration = "01:00:00";
+
     private readonly IRouterService _router;
     private string _newProfileName = string.Empty;
-    private string _rateLimit = "2M/2M";
-    private string _ticketDuration = "01:00:00";
+    private string _rateLimit = DefaultRateLimit;
+    private string _ticketDuration = DefaultTicketDuration;
+    private HotspotProfile? _editingProfile;
+    private bool _isFormVisible;
 
     public ProfilesViewModel(IRouterService router, ConnectionState connection) : base(connection)
     {
         _router = router;
         RefreshCommand = new AsyncCommand(RefreshAsync);
-        AddProfileCommand = new AsyncCommand(AddProfileAsync);
+        SaveProfileCommand = new AsyncCommand(SaveProfileAsync);
+        NewProfileCommand = new AsyncCommand(() =>
+        {
+            ResetForm();
+            IsFormVisible = true;
+            return Task.CompletedTask;
+        });
+        EditProfileCommand = new AsyncCommand<HotspotProfile>(EditProfileAsync);
+        DeleteProfileCommand = new AsyncCommand<HotspotProfile>(DeleteProfileAsync);
+        CancelEditCommand = new AsyncCommand(() =>
+        {
+            ResetForm();
+            IsFormVisible = false;
+            return Task.CompletedTask;
+        });
     }
 
     public ObservableCollection<HotspotProfile> Profiles { get; } = [];
@@ -26,8 +45,21 @@ public sealed class ProfilesViewModel : PageViewModel
     public string RateLimit { get => _rateLimit; set => Set(ref _rateLimit, value); }
     public string TicketDuration { get => _ticketDuration; set => Set(ref _ticketDuration, value); }
 
+    public bool IsFormVisible { get => _isFormVisible; set => Set(ref _isFormVisible, value); }
+    public bool IsEditing => _editingProfile is not null;
+    public HotspotProfile? EditingProfile => _editingProfile;
+    public string FormTitle => IsEditing ? "Editar perfil" : "Nuevo perfil";
+    public string SaveButtonText => IsEditing ? "Guardar cambios" : "Crear perfil";
+    public string ProfileCountText => Profiles.Count == 1
+        ? "1 perfil configurado"
+        : $"{Profiles.Count} perfiles configurados";
+
     public ICommand RefreshCommand { get; }
-    public ICommand AddProfileCommand { get; }
+    public ICommand SaveProfileCommand { get; }
+    public ICommand NewProfileCommand { get; }
+    public ICommand EditProfileCommand { get; }
+    public ICommand DeleteProfileCommand { get; }
+    public ICommand CancelEditCommand { get; }
 
     public Task RefreshAsync() => RunAsync(async () =>
     {
@@ -37,26 +69,120 @@ public sealed class ProfilesViewModel : PageViewModel
             return;
         }
 
+        await LoadProfilesAsync();
+    });
+
+    public Task SaveProfileAsync() => RunAsync(async () =>
+    {
+        var name = NewProfileName.Trim();
+        if (name.Length == 0)
+            throw new ArgumentException("Indica el nombre del perfil.");
+
+        var rateLimit = RateLimit.Trim();
+        var duration = DurationInput.Parse(TicketDuration);
+
+        if (_editingProfile is { } editing)
+        {
+            await _router.UpdateProfileAsync(editing.Name, rateLimit, duration);
+            Success($"Perfil «{editing.Name}» actualizado.");
+        }
+        else
+        {
+            if (Profiles.Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                throw new ArgumentException($"Ya existe un perfil llamado «{name}».");
+
+            await _router.AddProfileAsync(name, rateLimit, duration);
+            Success($"Perfil «{name}» creado con {TicketBatchExport.Humanize(duration)} de ticket.");
+        }
+
+        ResetForm();
+        IsFormVisible = false;
+        await LoadProfilesAsync();
+    });
+
+    private Task EditProfileAsync(HotspotProfile? profile)
+    {
+        if (profile is null)
+            return Task.CompletedTask;
+
+        _editingProfile = profile;
+        NewProfileName = profile.Name;
+        RateLimit = profile.RateLimit ?? string.Empty;
+        TicketDuration = profile.TicketDuration is { } duration
+            ? RouterOsTime.ToRouterOs(duration)
+            : string.Empty;
+        RaiseFormState();
+        IsFormVisible = true;
+        return Task.CompletedTask;
+    }
+
+    private Task DeleteProfileAsync(HotspotProfile? profile) => RunAsync(async () =>
+    {
+        if (profile is null)
+            return;
+
+        // Los tickets existentes conservan su propio limit-uptime; lo que pierden al borrar el
+        // perfil es la velocidad y los demás ajustes que este les aplicaba.
+        var users = await _router.GetUsersAsync();
+        var inUse = users.Count(u => u.Profile.Equals(profile.Name, StringComparison.OrdinalIgnoreCase));
+        var detail = inUse > 0
+            ? $"Lo usan {inUse} tickets, que perderán la velocidad y los demás ajustes del perfil."
+            : "Ningún ticket lo está usando.";
+        var confirmed = await Shell.Current.DisplayAlertAsync(
+            "Eliminar perfil",
+            $"Se eliminará el perfil «{profile.Name}». {detail} Esta acción no se puede deshacer.",
+            "Eliminar", "Cancelar");
+        if (!confirmed)
+            return;
+
+        var removed = await _router.RemoveProfileAsync(profile.Name);
+        if (removed == 0)
+            throw new InvalidOperationException($"El perfil «{profile.Name}» ya no existe en el router.");
+
+        if (_editingProfile?.Name.Equals(profile.Name, StringComparison.OrdinalIgnoreCase) == true)
+        {
+            ResetForm();
+            IsFormVisible = false;
+        }
+
+        Success($"Perfil «{profile.Name}» eliminado.");
+        await LoadProfilesAsync();
+    });
+
+    private async Task LoadProfilesAsync()
+    {
         var profiles = await _router.GetProfilesAsync();
         Profiles.Clear();
         foreach (var profile in profiles)
             Profiles.Add(profile);
-    });
+        Raise(nameof(ProfileCountText));
 
-    public Task AddProfileAsync() => RunAsync(async () =>
+        // Si el perfil en edición desapareció (lo borró otro administrador), el formulario
+        // vuelve a modo de alta para no guardar sobre un perfil inexistente.
+        if (_editingProfile is { } editing &&
+            !profiles.Any(p => p.Name.Equals(editing.Name, StringComparison.OrdinalIgnoreCase)))
+        {
+            ResetForm();
+            IsFormVisible = false;
+        }
+    }
+
+    private void ResetForm()
     {
-        if (string.IsNullOrWhiteSpace(NewProfileName))
-            throw new ArgumentException("Indica el nombre del perfil.");
-        if (Profiles.Any(p => p.Name.Equals(NewProfileName.Trim(), StringComparison.OrdinalIgnoreCase)))
-            throw new ArgumentException($"Ya existe un perfil llamado «{NewProfileName.Trim()}».");
-
-        var duration = DurationInput.Parse(TicketDuration);
-        await _router.AddProfileAsync(NewProfileName.Trim(), RateLimit.Trim(), duration);
-
-        Success($"Perfil «{NewProfileName.Trim()}» creado con {TicketBatchExport.Humanize(duration)} de ticket.");
+        _editingProfile = null;
         NewProfileName = string.Empty;
-        await RefreshAsync();
-    });
+        RateLimit = DefaultRateLimit;
+        TicketDuration = DefaultTicketDuration;
+        RaiseFormState();
+    }
+
+    private void RaiseFormState()
+    {
+        Raise(nameof(IsEditing));
+        Raise(nameof(EditingProfile));
+        Raise(nameof(FormTitle));
+        Raise(nameof(SaveButtonText));
+    }
 }
 
 /// <summary>

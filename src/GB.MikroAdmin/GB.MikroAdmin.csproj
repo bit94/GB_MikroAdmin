@@ -8,14 +8,22 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <MauiEnableXamlCBindingWithSourceCompilation>true</MauiEnableXamlCBindingWithSourceCompilation>
     <ApplicationTitle>MikroAdmin</ApplicationTitle>
     <ApplicationId>com.gb.mikroadmin</ApplicationId>
-    <MauiIcon>Resources/Icons/appicon.svg</MauiIcon>
     <!-- Ejecución y depuración de Windows sin generar un paquete MSIX. -->
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
-    <WindowsAppIcon>Resources/Icons/appicon.ico</WindowsAppIcon>
+    <ApplicationIcon>Resources/Icons/appicon.ico</ApplicationIcon>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- Windows usa un icono completo; Android se compone de fondo y primer plano adaptativos. -->
+    <MauiIcon Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'"
+              Include="Resources/Icons/appicon_windows.svg" />
+    <MauiIcon Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'"
+              Include="Resources/Icons/appicon.svg"
+              ForegroundFile="Resources/Icons/appiconfg.svg" />
+  </ItemGroup>
   <ItemGroup>
     <MauiAsset Include="Resources/Icons/favicon.ico" />
     <MauiAsset Include="Resources/Icons/appicon.ico" />

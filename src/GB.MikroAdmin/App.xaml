@@ -8,17 +8,21 @@
       <views:InvertBoolConverter x:Key="Invert" />
       <!-- Paleta: un solo acento y fondos neutros, para que el estado del ticket resalte. -->
       <Color x:Key="Primary">#2563EB</Color>
+      <Color x:Key="PrimaryPressed">#1D4ED8</Color>
       <Color x:Key="Surface">#132033</Color>
       <Color x:Key="SurfaceAlt">#1B2B44</Color>
       <Color x:Key="Border">#2C4A6E</Color>
+      <Color x:Key="Scrim">#D90B1626</Color>
       <Color x:Key="TextPrimary">#F8FAFC</Color>
-      <Color x:Key="TextMuted">#E2E8F0</Color>
+      <Color x:Key="TextSecondary">#94A3B8</Color>
 
       <!-- Semántica de estado. Verde = activo/sin usar, ámbar = en uso, rojo = agotado. -->
-      <Color x:Key="StateIdle">#64748B</Color>
+      <Color x:Key="StateIdle">#94A3B8</Color>
       <Color x:Key="StateAvailable">#22C55E</Color>
       <Color x:Key="StateInUse">#F59E0B</Color>
       <Color x:Key="StateExpired">#EF4444</Color>
+      <Color x:Key="DangerFill">#DC2626</Color>
+      <Color x:Key="DangerText">#F87171</Color>
 
       <Style TargetType="Label">
         <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
@@ -31,13 +35,28 @@
 
       <Style TargetType="Entry">
         <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="PlaceholderColor" Value="{StaticResource StateIdle}" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource TextSecondary}" />
         <Setter Property="BackgroundColor" Value="{StaticResource SurfaceAlt}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="MinimumHeightRequest" Value="40" />
       </Style>
 
       <Style TargetType="Picker">
         <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="TitleColor" Value="{StaticResource TextSecondary}" />
         <Setter Property="BackgroundColor" Value="{StaticResource SurfaceAlt}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="MinimumHeightRequest" Value="40" />
+      </Style>
+
+      <Style x:Key="PageTitle" TargetType="Label">
+        <Setter Property="FontSize" Value="26" />
+        <Setter Property="FontAttributes" Value="Bold" />
+      </Style>
+
+      <Style x:Key="FormTitle" TargetType="Label">
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="FontAttributes" Value="Bold" />
       </Style>
 
       <Style x:Key="SectionTitle" TargetType="Label">
@@ -46,9 +65,20 @@
         <Setter Property="Margin" Value="0,14,0,2" />
       </Style>
 
+      <Style x:Key="CardTitle" TargetType="Label">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontAttributes" Value="Bold" />
+      </Style>
+
+      <Style x:Key="FieldLabel" TargetType="Label">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
+      </Style>
+
       <Style x:Key="Caption" TargetType="Label">
         <Setter Property="FontSize" Value="12" />
-        <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
+        <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
       </Style>
 
       <Style x:Key="Mono" TargetType="Label">
@@ -58,14 +88,80 @@
 
       <Style x:Key="Card" TargetType="Border">
         <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
-        <Setter Property="StrokeShape" Value="RoundRectangle 10" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 12" />
         <Setter Property="Stroke" Value="Transparent" />
         <Setter Property="Padding" Value="12" />
       </Style>
 
-      <Style x:Key="DangerButton" TargetType="Button">
-        <Setter Property="BackgroundColor" Value="{StaticResource StateExpired}" />
+      <Style x:Key="InputBorder" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{StaticResource SurfaceAlt}" />
+        <Setter Property="Stroke" Value="Transparent" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 10" />
+        <Setter Property="Padding" Value="12,0" />
+      </Style>
+
+      <!-- Botón base: superficie con borde. Las variantes cambian solo el énfasis. -->
+      <Style x:Key="BaseButton" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource SurfaceAlt}" />
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="BorderColor" Value="{StaticResource Border}" />
+        <Setter Property="BorderWidth" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Padding" Value="14,8" />
+        <Setter Property="MinimumHeightRequest" Value="38" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+          <VisualStateGroupList>
+            <VisualStateGroup x:Name="CommonStates">
+              <VisualState x:Name="Normal" />
+              <VisualState x:Name="Disabled">
+                <VisualState.Setters>
+                  <Setter Property="Opacity" Value="0.45" />
+                </VisualState.Setters>
+              </VisualState>
+            </VisualStateGroup>
+          </VisualStateGroupList>
+        </Setter>
+      </Style>
+
+      <Style TargetType="Button" BasedOn="{StaticResource BaseButton}" />
+
+      <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+        <Setter Property="BorderColor" Value="{StaticResource Primary}" />
         <Setter Property="TextColor" Value="White" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="HeightRequest" Value="46" />
+        <Setter Property="Padding" Value="18,0" />
+      </Style>
+
+      <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+        <Setter Property="HeightRequest" Value="44" />
+      </Style>
+
+      <Style x:Key="GhostButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="BorderWidth" Value="0" />
+        <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="MinimumHeightRequest" Value="34" />
+      </Style>
+
+      <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+        <Setter Property="BackgroundColor" Value="{StaticResource DangerFill}" />
+        <Setter Property="BorderColor" Value="{StaticResource DangerFill}" />
+        <Setter Property="TextColor" Value="White" />
+        <Setter Property="FontAttributes" Value="Bold" />
+      </Style>
+
+      <Style x:Key="DangerTextButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="BorderWidth" Value="0" />
+        <Setter Property="TextColor" Value="{StaticResource DangerText}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="MinimumHeightRequest" Value="34" />
       </Style>
     </ResourceDictionary>
   </Application.Resources>

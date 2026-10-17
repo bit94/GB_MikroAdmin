@@ -72,16 +72,33 @@ public sealed class LoginViewModel : ObservableObject
 
     public async Task RestoreAsync()
     {
-        var saved = await _settings.GetAsync();
-        if (saved is null)
-            return;
+        try
+        {
+            var saved = await _settings.GetAsync();
+            if (saved is null)
+                return;
 
-        Host = saved.Host;
-        Port = saved.Port.ToString();
-        UserName = saved.UserName;
-        Simulated = saved.Simulated;
-        UseTls = saved.UseTls;
-        // La contraseña nunca se rellena: vive solo en SecureStorage y se vuelve a pedir.
+            // Si ya hay una contraseña escrita (por ejemplo, tras un intento fallido), no se
+            // pisan los datos que el usuario está corrigiendo. Al volver tras desconectar el
+            // campo está vacío y se recupera la configuración guardada.
+            if (!string.IsNullOrEmpty(Password))
+                return;
+
+            Host = saved.Host;
+            Port = saved.Port.ToString();
+            UserName = saved.UserName;
+            Simulated = saved.Simulated;
+            UseTls = saved.UseTls;
+
+            // Se rellena para no pedirla en cada arranque. El campo está enmascarado y la copia
+            // persistente sigue siendo la de SecureStorage; nunca se escribe en claro.
+            Password = saved.Simulated ? string.Empty : saved.Password;
+        }
+        catch (Exception exception)
+        {
+            // Si el almacén seguro falla, se puede reintentar al volver a la pantalla.
+            Message = $"No se pudo recuperar la conexión guardada: {exception.Message}";
+        }
     }
 
     private async Task ConnectAsync()

@@ -3,6 +3,8 @@ using System.Windows.Input;
 using GB.MikroAdmin.Core.Models;
 using GB.MikroAdmin.Core.Services;
 using GB.MikroAdmin.Services;
+using Microsoft.Maui.ApplicationModel.DataTransfer;
+using Microsoft.Maui.Storage;
 
 namespace GB.MikroAdmin.ViewModels;
 
@@ -12,6 +14,11 @@ namespace GB.MikroAdmin.ViewModels;
 /// </summary>
 public sealed class UsersViewModel : PageViewModel
 {
+    private const string QuantityPreference = "batch.quantity";
+    private const string ProfilePreference = "batch.profile";
+    private const string SsidPreference = "batch.ssid";
+    private const string PricePreference = "batch.price";
+
     private readonly IRouterService _router;
     private readonly IHotspotProvisioningService _provisioning;
     private readonly ITicketHistoryStore _history;
@@ -30,6 +37,7 @@ public sealed class UsersViewModel : PageViewModel
     private double _progressPercent;
     private bool _isGenerating;
     private CancellationTokenSource? _batchCancellation;
+    private TicketBatchExport? _currentBatch;
 
     public UsersViewModel(
         IRouterService router,
@@ -43,17 +51,30 @@ public sealed class UsersViewModel : PageViewModel
         _history = history;
         _exporter = exporter;
 
+        // El formulario de generación se recuerda entre arranques: cantidad, red y precio.
+        _batchQuantity = Preferences.Default.Get(QuantityPreference, "10");
+        _ticketSsid = Preferences.Default.Get(SsidPreference, string.Empty);
+        _ticketPrice = Preferences.Default.Get(PricePreference, string.Empty);
+
         RefreshCommand = new AsyncCommand(RefreshAsync);
         CreateBatchCommand = new AsyncCommand(CreateBatchAsync);
         CancelBatchCommand = new AsyncCommand(() => { _batchCancellation?.Cancel(); return Task.CompletedTask; });
         DeleteUserCommand = new AsyncCommand<HotspotUser>(DeleteUserAsync);
         DeleteSelectedCommand = new AsyncCommand(DeleteSelectedAsync);
         RemoveExpiredCommand = new AsyncCommand(RemoveExpiredAsync);
-        ClearGeneratedCommand = new AsyncCommand(() => { Generated.Clear(); return Task.CompletedTask; });
+        ClearGeneratedCommand = new AsyncCommand(() =>
+        {
+            Generated.Clear();
+            _currentBatch = null;
+            Raise(nameof(CanExport));
+            return Task.CompletedTask;
+        });
         ExportCsvCommand = new AsyncCommand(ExportCsvAsync);
         PrintCommand = new AsyncCommand(PrintAsync);
         ShareCommand = new AsyncCommand(ShareAsync);
         ShareHtmlCommand = new AsyncCommand(ShareHtmlAsync);
+        CopyGeneratedCommand = new AsyncCommand<CreatedHotspotUser>(CopyGeneratedAsync);
+        Generated.CollectionChanged += (_, _) => Raise(nameof(GeneratedCountText));
     }
 
     public ObservableCollection<HotspotUser> Users { get; } = [];
@@ -63,7 +84,6 @@ public sealed class UsersViewModel : PageViewModel
     public ObservableCollection<HotspotProfile> Profiles { get; } = [];
 
     public ObservableCollection<CreatedHotspotUser> Generated { get; } = [];
-
     /// <summary>Texto de progreso mostrado durante la generación de un lote.</summary>
     public string ProgressText
     {
@@ -84,13 +104,22 @@ public sealed class UsersViewModel : PageViewModel
         get => _isGenerating;
         private set
         {
-            if (Set(ref _isGenerating, value))
-                Raise(nameof(CanExport));
+            if (!Set(ref _isGenerating, value))
+                return;
+
+            Raise(nameof(CanExport));
+            Raise(nameof(GenerateButtonText));
         }
     }
 
     /// <summary>No hay nada que exportar hasta que exista un lote generado.</summary>
     public bool CanExport => Generated.Count > 0 && !IsGenerating;
+
+    public string GeneratedCountText => Generated.Count == 1
+        ? "1 código listo para entregar"
+        : $"{Generated.Count} códigos listos para entregar";
+
+    public string GenerateButtonText => IsGenerating ? "Generando…" : "Generar";
 
     public string Filter
     {
@@ -104,16 +133,73 @@ public sealed class UsersViewModel : PageViewModel
         set { if (Set(ref _onlyExpired, value)) ApplyFilter(); }
     }
 
-    public string BatchQuantity { get => _batchQuantity; set => Set(ref _batchQuantity, value); }
+    public string BatchQuantity
+    {
+        get => _batchQuantity;
+        set
+        {
+            if (Set(ref _batchQuantity, value))
+                Preferences.Default.Set(QuantityPreference, value);
+        }
+    }
 
     /// <summary>Datos opcionales que se imprimen en la tarjeta; se preguntan aquí y viajan con el lote.</summary>
     public string TicketBrand { get => _ticketBrand; set => Set(ref _ticketBrand, value); }
-    public string TicketSsid { get => _ticketSsid; set => Set(ref _ticketSsid, value); }
-    public string TicketPrice { get => _ticketPrice; set => Set(ref _ticketPrice, value); }
+
+    public string TicketSsid
+    {
+        get => _ticketSsid;
+        set
+        {
+            if (Set(ref _ticketSsid, value))
+                Preferences.Default.Set(SsidPreference, value);
+        }
+    }
+
+    public string TicketPrice
+    {
+        get => _ticketPrice;
+        set
+        {
+            if (Set(ref _ticketPrice, value))
+                Preferences.Default.Set(PricePreference, value);
+        }
+    }
+
     public string TicketStatusUrl { get => _ticketStatusUrl; set => Set(ref _ticketStatusUrl, value); }
 
-    public HotspotUser? SelectedUser { get => _selectedUser; set => Set(ref _selectedUser, value); }
-    public HotspotProfile? SelectedProfile { get => _selectedProfile; set => Set(ref _selectedProfile, value); }
+    public HotspotUser? SelectedUser
+    {
+        get => _selectedUser;
+        set
+        {
+            if (Set(ref _selectedUser, value))
+                Raise(nameof(HasSelectedUser));
+        }
+    }
+
+    public bool HasSelectedUser => SelectedUser is not null;
+
+    public HotspotProfile? SelectedProfile
+    {
+        get => _selectedProfile;
+        set
+        {
+            if (!Set(ref _selectedProfile, value))
+                return;
+
+            if (value is not null)
+                Preferences.Default.Set(ProfilePreference, value.Name);
+            Raise(nameof(SelectedProfileDurationText));
+        }
+    }
+
+    /// <summary>Duración del perfil en lenguaje corriente, para revisarla antes de generar.</summary>
+    public string SelectedProfileDurationText => SelectedProfile is not { } profile
+        ? "Selecciona el perfil que usarán los tickets."
+        : profile.TicketDuration is { } duration
+            ? $"Duración por ticket: {TicketBatchExport.Humanize(duration)}."
+            : "Este perfil no tiene duración configurada; no se pueden generar tickets.";
 
     public ICommand RefreshCommand { get; }
     public ICommand CreateBatchCommand { get; }
@@ -126,6 +212,7 @@ public sealed class UsersViewModel : PageViewModel
     public ICommand PrintCommand { get; }
     public ICommand ShareCommand { get; }
     public ICommand ShareHtmlCommand { get; }
+    public ICommand CopyGeneratedCommand { get; }
 
     public Task RefreshAsync() => RunAsync(async () =>
     {
@@ -142,11 +229,15 @@ public sealed class UsersViewModel : PageViewModel
         foreach (var user in users.OrderBy(u => u.Name))
             Users.Add(user);
 
+        SelectedUser = Users.FirstOrDefault(u => u.Name == SelectedUser?.Name);
         Profiles.Clear();
         foreach (var profile in profiles)
             Profiles.Add(profile);
 
-        SelectedProfile = Profiles.FirstOrDefault(p => p.Name == SelectedProfile?.Name) ?? Profiles.FirstOrDefault();
+        // En el primer refresco se recupera el perfil usado la última vez; después se mantiene
+        // el que esté seleccionado aunque la lista se recargue.
+        var preferredProfile = SelectedProfile?.Name ?? Preferences.Default.Get(ProfilePreference, string.Empty);
+        SelectedProfile = Profiles.FirstOrDefault(p => p.Name == preferredProfile) ?? Profiles.FirstOrDefault();
         ApplyFilter();
         Connection.Refresh();
     });
@@ -165,6 +256,9 @@ public sealed class UsersViewModel : PageViewModel
         {
             if (!int.TryParse(BatchQuantity, out var count))
                 throw new ArgumentException("La cantidad debe ser un número.");
+            if (count is < HotspotProvisioningService.MinQuantity or > HotspotProvisioningService.MaxQuantity)
+                throw new ArgumentException(
+                    $"La cantidad debe estar entre {HotspotProvisioningService.MinQuantity} y {HotspotProvisioningService.MaxQuantity}.");
 
             var profile = SelectedProfile
                 ?? throw new ArgumentException("Selecciona el perfil que usarán los tickets.");
@@ -172,7 +266,16 @@ public sealed class UsersViewModel : PageViewModel
                 ?? throw new ArgumentException($"El perfil «{profile.Name}» no tiene duración de ticket. " +
                                                "Créalo de nuevo indicando la duración, o usa otro perfil.");
 
+            // Todo lo que puede fallar por el formulario se valida antes de crear usuarios:
+            // un precio mal escrito no debe dejar tickets huérfanos en el router.
+            var price = ParsePrice();
+            var brand = NullIfEmpty(TicketBrand);
+            var ssid = NullIfEmpty(TicketSsid);
+            var statusUrl = NullIfEmpty(TicketStatusUrl);
+            var createdAt = DateTimeOffset.Now;
+
             Generated.Clear();
+            _currentBatch = null;
             Raise(nameof(CanExport));
             ProgressPercent = 0;
             ProgressText = $"Preparando {count} tickets…";
@@ -188,6 +291,9 @@ public sealed class UsersViewModel : PageViewModel
                 ProgressText = $"{report.Completed} de {report.Total}…";
             });
 
+            TicketBatchExport Snapshot(IReadOnlyList<CreatedHotspotUser> tickets) => new(
+                createdAt, profile.Name, duration, tickets, brand, ssid, price, statusUrl);
+
             try
             {
                 var created = await _provisioning.CreateBatchAsync(
@@ -196,21 +302,22 @@ public sealed class UsersViewModel : PageViewModel
                 foreach (var ticket in created)
                     Generated.Add(ticket);
 
-                await _history.SaveAsync(BuildBatch(profile.Name, duration, created));
+                _currentBatch = Snapshot(created);
+                await _history.SaveAsync(_currentBatch);
                 Success($"Se crearon {created.Count} tickets de {TicketBatchExport.Humanize(duration)}. " +
                         "Puedes exportarlos o imprimirlos.");
             }
             catch (OperationCanceledException)
             {
                 // Lo que ya se creó antes de cancelar sigue siendo válido: se guarda igual.
-                await PersistPartialAsync(profile.Name, duration);
+                await PersistGeneratedAsync(Snapshot);
                 Warn($"Lote cancelado. Se conservaron {Generated.Count} tickets ya creados.");
             }
             catch (TicketBatchException partial)
             {
                 foreach (var ticket in partial.Created)
                     Generated.Add(ticket);
-                await PersistPartialAsync(profile.Name, duration);
+                await PersistGeneratedAsync(Snapshot);
                 Fail(partial.Message);
             }
 
@@ -229,30 +336,34 @@ public sealed class UsersViewModel : PageViewModel
         }
     }
 
-    private async Task PersistPartialAsync(string profile, TimeSpan duration)
+    private Task CopyGeneratedAsync(CreatedHotspotUser? ticket) => RunAsync(async () =>
+    {
+        if (ticket is null)
+            return;
+
+        await Clipboard.Default.SetTextAsync(ticket.Name);
+        Info($"Código {ticket.Name} copiado.");
+    });
+
+    private async Task PersistGeneratedAsync(Func<IReadOnlyList<CreatedHotspotUser>, TicketBatchExport> snapshot)
     {
         if (Generated.Count == 0)
             return;
-        await _history.SaveAsync(BuildBatch(profile, duration, [.. Generated]));
+
+        _currentBatch = snapshot([.. Generated]);
+        await _history.SaveAsync(_currentBatch);
     }
 
-    /// <summary>
-    /// Construye el lote con los datos opcionales de la tarjeta. El precio es texto libre:
-    /// si no se entiende como número, es un error del formulario y no un lote sin precio.
-    /// </summary>
-    private TicketBatchExport BuildBatch(string profile, TimeSpan duration, IReadOnlyList<CreatedHotspotUser> tickets)
+    /// <summary>El precio es texto libre: si no se entiende como número, es un error del formulario y no un lote sin precio.</summary>
+    private decimal? ParsePrice()
     {
-        decimal? price = null;
-        if (!string.IsNullOrWhiteSpace(TicketPrice))
-        {
-            if (!decimal.TryParse(TicketPrice, out var parsed) || parsed < 0 || parsed > 100_000)
-                throw new ArgumentException("El precio debe ser un número positivo, por ejemplo 15.00.");
-            price = parsed;
-        }
+        if (string.IsNullOrWhiteSpace(TicketPrice))
+            return null;
 
-        return new TicketBatchExport(
-            DateTimeOffset.Now, profile, duration, tickets,
-            NullIfEmpty(TicketBrand), NullIfEmpty(TicketSsid), price, NullIfEmpty(TicketStatusUrl));
+        if (!decimal.TryParse(TicketPrice, out var parsed) || parsed < 0 || parsed > 100_000)
+            throw new ArgumentException("El precio debe ser un número positivo, por ejemplo 15.00.");
+
+        return parsed;
     }
 
     private static string? NullIfEmpty(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -304,21 +415,16 @@ public sealed class UsersViewModel : PageViewModel
     });
 
     /// <summary>
-    /// Construye el lote a partir de lo que hay en pantalla. Se exige que exista algo generado
-    /// para no exportar un archivo vacío.
+    /// Devuelve el lote congelado al generarlo. Antes se reconstruía con el perfil y los datos
+    /// de la tarjeta que hubiera en pantalla, así que cambiar el selector después de generar
+    /// alteraba el CSV y el PDF de un lote ya creado.
     /// </summary>
     private TicketBatchExport CurrentBatch()
     {
-        if (Generated.Count == 0)
+        if (_currentBatch is null || Generated.Count == 0)
             throw new InvalidOperationException("Genera un lote antes de exportarlo.");
 
-        var profile = SelectedProfile
-            ?? throw new InvalidOperationException("Selecciona el perfil del lote.");
-
-        return BuildBatch(
-            profile.Name,
-            profile.TicketDuration ?? TimeSpan.FromHours(1),
-            [.. Generated]);
+        return _currentBatch;
     }
 
     private Task DeleteUserAsync(HotspotUser? user) => RunAsync(async () =>
@@ -335,7 +441,13 @@ public sealed class UsersViewModel : PageViewModel
 
     private Task DeleteSelectedAsync() => RunAsync(async () =>
     {
-        var user = SelectedUser ?? throw new ArgumentException("Selecciona un ticket de la lista.");
+        var user = SelectedUser;
+        if (user is null)
+        {
+            Info("Selecciona un ticket de la lista.");
+            return;
+        }
+
         if (await _router.RemoveUsersAsync([user.Name]) == 0)
             throw new InvalidOperationException($"El ticket «{user.Name}» ya no existe en el router.");
 
@@ -353,6 +465,13 @@ public sealed class UsersViewModel : PageViewModel
             return;
         }
 
+        var confirmed = await Shell.Current.DisplayAlertAsync(
+            "Limpiar agotados",
+            $"Se eliminarán {expired.Count} tickets agotados del router. Esta acción no se puede deshacer.",
+            "Eliminar", "Cancelar");
+        if (!confirmed)
+            return;
+
         // Un único listado y un único borrado por lotes, por muchos que haya agotados.
         var removed = await _router.RemoveUsersAsync(expired);
 
@@ -368,6 +487,7 @@ public sealed class UsersViewModel : PageViewModel
         Users.Clear();
         foreach (var user in users.OrderBy(u => u.Name))
             Users.Add(user);
+        SelectedUser = Users.FirstOrDefault(u => u.Name == SelectedUser?.Name);
         ApplyFilter();
     }
 

@@ -2,63 +2,137 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:GB.MikroAdmin.Views"
+             xmlns:vm="clr-namespace:GB.MikroAdmin.ViewModels"
+             xmlns:models="clr-namespace:GB.MikroAdmin.Core.Models;assembly=GB.MikroAdmin.Core"
              x:Class="GB.MikroAdmin.Views.ProfilesPage"
+             x:DataType="vm:ProfilesViewModel"
              Title="Perfiles">
 
   <ContentPage.Resources>
     <views:NoticeColorConverter x:Key="NoticeColor" />
+    <views:ProfileSummaryConverter x:Key="ProfileSummary" />
   </ContentPage.Resources>
 
-  <Grid RowDefinitions="Auto,*">
-    <VerticalStackLayout Grid.Row="0" Padding="12" Spacing="10">
-      <Border Style="{StaticResource Card}" BackgroundColor="{StaticResource SurfaceAlt}">
-        <VerticalStackLayout Spacing="1">
-          <Label Text="Conectado a" Style="{StaticResource Caption}" />
-          <Label Text="{Binding Connection.Display}" FontAttributes="Bold" />
+  <Grid>
+    <!-- La lista es la pantalla principal; el formulario solo aparece al crear o editar. -->
+    <Grid RowDefinitions="Auto,*" RowSpacing="10" Padding="16,12,16,0">
+      <VerticalStackLayout Grid.Row="0" Spacing="8">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <VerticalStackLayout Spacing="1" VerticalOptions="Center">
+            <Label Text="Tus perfiles" Style="{StaticResource PageTitle}" />
+            <Label Text="{Binding ProfileCountText}" Style="{StaticResource Caption}" />
+            <Label Text="{Binding Connection.Display}" Style="{StaticResource Caption}"
+                   LineBreakMode="TailTruncation" />
+          </VerticalStackLayout>
+          <Button Grid.Column="1" Text="Nuevo perfil" Style="{StaticResource PrimaryButton}"
+                  Command="{Binding NewProfileCommand}" VerticalOptions="Center" />
+        </Grid>
+
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Notices}" Spacing="2">
+          <BindableLayout.ItemTemplate>
+            <DataTemplate x:DataType="vm:Notice">
+              <Label Text="{Binding Text}" FontSize="13"
+                     TextColor="{Binding Severity, Converter={StaticResource NoticeColor}}" />
+            </DataTemplate>
+          </BindableLayout.ItemTemplate>
         </VerticalStackLayout>
-      </Border>
-
-      <Label Text="Nuevo perfil" Style="{StaticResource SectionTitle}" />
-      <Entry Placeholder="Nombre del perfil" Text="{Binding NewProfileName}" />
-      <Entry Placeholder="Límite de velocidad, ej. 2M/2M" Text="{Binding RateLimit}" />
-      <Entry Placeholder="Duración del ticket: HH:MM:SS o 7d, 12h, 90m" Text="{Binding TicketDuration}" />
-      <Label Text="La duración se guarda en el comentario del perfil, porque RouterOS no tiene un campo propio para ella."
-             Style="{StaticResource Caption}" />
-      <Button Text="Crear perfil" Command="{Binding AddProfileCommand}" />
-
-      <VerticalStackLayout BindableLayout.ItemsSource="{Binding Notices}">
-        <BindableLayout.ItemTemplate>
-          <DataTemplate>
-            <Label Text="{Binding Text}" FontSize="13"
-                   TextColor="{Binding Severity, Converter={StaticResource NoticeColor}}" />
-          </DataTemplate>
-        </BindableLayout.ItemTemplate>
       </VerticalStackLayout>
 
-      <Label Text="Perfiles disponibles" Style="{StaticResource SectionTitle}" />
-      <Button Text="Actualizar" Command="{Binding RefreshCommand}" Padding="14,6" HorizontalOptions="Start" />
-    </VerticalStackLayout>
+      <CollectionView Grid.Row="1" ItemsSource="{Binding Profiles}" SelectionMode="None" Margin="0,0,0,12">
+        <CollectionView.EmptyView>
+          <VerticalStackLayout Spacing="6" Margin="0,32" HorizontalOptions="Center">
+            <Label Text="Aún no hay perfiles" Style="{StaticResource CardTitle}" HorizontalOptions="Center" />
+            <Label Text="Crea uno para definir el tiempo y la velocidad de tus tickets."
+                   Style="{StaticResource Caption}" HorizontalTextAlignment="Center" />
+          </VerticalStackLayout>
+        </CollectionView.EmptyView>
+        <CollectionView.ItemTemplate>
+          <DataTemplate x:DataType="models:HotspotProfile">
+            <Border Style="{StaticResource Card}" Margin="0,0,0,8">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <VerticalStackLayout Spacing="3" VerticalOptions="Center">
+                  <Label Text="{Binding Name}" Style="{StaticResource CardTitle}" />
+                  <Label Text="{Binding ., Converter={StaticResource ProfileSummary}}"
+                         Style="{StaticResource Caption}" />
+                </VerticalStackLayout>
+                <Button Grid.Column="1" Text="Editar" Style="{StaticResource SecondaryButton}"
+                        HeightRequest="38" MinimumWidthRequest="84" Padding="14,0" FontSize="13"
+                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:ProfilesViewModel}}, Path=EditProfileCommand, x:DataType=vm:ProfilesViewModel}"
+                        CommandParameter="{Binding .}" VerticalOptions="Center" />
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </CollectionView.ItemTemplate>
+      </CollectionView>
+    </Grid>
 
-    <CollectionView Grid.Row="1" ItemsSource="{Binding Profiles}" Margin="12,4,12,12">
-      <CollectionView.EmptyView>
-        <Label Text="No hay perfiles." Style="{StaticResource Caption}" Margin="0,20" HorizontalOptions="Center" />
-      </CollectionView.EmptyView>
-      <CollectionView.ItemTemplate>
-        <DataTemplate>
-          <Border Style="{StaticResource Card}" Margin="0,0,0,6">
-            <Grid ColumnDefinitions="*,Auto">
-              <VerticalStackLayout Spacing="1">
-                <Label Text="{Binding Name}" FontAttributes="Bold" />
-                <Label Text="{Binding RateLimit, StringFormat='Velocidad: {0}'}" Style="{StaticResource Caption}" />
+    <!-- Formulario modal: cubre la lista para que el teclado no la comprima. -->
+    <Grid IsVisible="{Binding IsFormVisible}" BackgroundColor="{StaticResource Scrim}" Padding="16">
+      <Border BackgroundColor="{StaticResource Surface}" Stroke="{StaticResource Border}" StrokeThickness="1"
+              StrokeShape="RoundRectangle 16" Padding="0"
+              MaximumWidthRequest="520" HorizontalOptions="Center" VerticalOptions="Fill">
+        <Grid RowDefinitions="*,Auto" Padding="20">
+          <ScrollView Grid.Row="0">
+            <VerticalStackLayout Spacing="16" Margin="0,0,0,8">
+              <VerticalStackLayout Spacing="2">
+                <Label Text="{Binding FormTitle}" Style="{StaticResource FormTitle}" />
+                <Label Text="Define la velocidad y el tiempo que tendrán los tickets nuevos."
+                       Style="{StaticResource Caption}" />
               </VerticalStackLayout>
-              <VerticalStackLayout Grid.Column="1" Spacing="1" HorizontalOptions="End">
-                <Label Text="{Binding TicketDuration, StringFormat='Ticket: {0:g}'}" />
-                <Label Text="{Binding SharedUsers, StringFormat='Usuarios: {0}'}" Style="{StaticResource Caption}" HorizontalOptions="End" />
+
+              <VerticalStackLayout Spacing="6">
+                <Label Text="Nombre" Style="{StaticResource FieldLabel}" />
+                <Border Style="{StaticResource InputBorder}">
+                  <Entry Placeholder="Ej. Día completo" Text="{Binding NewProfileName}"
+                         IsReadOnly="{Binding IsEditing}" BackgroundColor="Transparent" />
+                </Border>
+                <Label Text="No se puede cambiar: los tickets creados lo usan para encontrar su perfil."
+                       Style="{StaticResource Caption}" IsVisible="{Binding IsEditing}" />
               </VerticalStackLayout>
+
+              <VerticalStackLayout Spacing="6">
+                <Label Text="Límite de velocidad" Style="{StaticResource FieldLabel}" />
+                <Border Style="{StaticResource InputBorder}">
+                  <Entry Placeholder="Ej. 2M/2M" Text="{Binding RateLimit}" BackgroundColor="Transparent" />
+                </Border>
+                <Label Text="Déjalo vacío para no limitar la velocidad." Style="{StaticResource Caption}" />
+              </VerticalStackLayout>
+
+              <VerticalStackLayout Spacing="6">
+                <Label Text="Duración del ticket" Style="{StaticResource FieldLabel}" />
+                <Border Style="{StaticResource InputBorder}">
+                  <Entry Placeholder="1h, 12h, 7d o 01:00:00" Text="{Binding TicketDuration}"
+                         BackgroundColor="Transparent" />
+                </Border>
+                <Label Text="Aplica solo a tickets nuevos; los existentes conservan su tiempo."
+                       Style="{StaticResource Caption}" />
+              </VerticalStackLayout>
+
+              <VerticalStackLayout BindableLayout.ItemsSource="{Binding Notices}" Spacing="2">
+                <BindableLayout.ItemTemplate>
+                  <DataTemplate x:DataType="vm:Notice">
+                    <Label Text="{Binding Text}" FontSize="13"
+                           TextColor="{Binding Severity, Converter={StaticResource NoticeColor}}" />
+                  </DataTemplate>
+                </BindableLayout.ItemTemplate>
+              </VerticalStackLayout>
+            </VerticalStackLayout>
+          </ScrollView>
+
+          <VerticalStackLayout Grid.Row="1" Spacing="10" Margin="0,12,0,0">
+            <BoxView HeightRequest="1" Color="{StaticResource Border}" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <Button Text="{Binding SaveButtonText}" Style="{StaticResource PrimaryButton}"
+                      Command="{Binding SaveProfileCommand}" />
+              <Button Grid.Column="1" Text="Cancelar" Style="{StaticResource SecondaryButton}"
+                      MinimumWidthRequest="104" Command="{Binding CancelEditCommand}" />
             </Grid>
-          </Border>
-        </DataTemplate>
-      </CollectionView.ItemTemplate>
-    </CollectionView>
+            <Button Text="Eliminar perfil" Style="{StaticResource DangerTextButton}"
+                    IsVisible="{Binding IsEditing}"
+                    Command="{Binding DeleteProfileCommand}" CommandParameter="{Binding EditingProfile}" />
+          </VerticalStackLayout>
+        </Grid>
+      </Border>
+    </Grid>
   </Grid>
 </ContentPage>

@@ -40,7 +40,7 @@ public sealed class TickFakeConnection : IRouterTransport
     public Task AddUserAsync(string name, string password, string profile, TimeSpan limit, CancellationToken cancellationToken)
     {
         if (_users.Any(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-            throw new InvalidOperationException($"El usuario «{name}» ya existe.");
+            throw new RouterWriteException(RouterWriteFailureKind.Duplicate, $"El usuario «{name}» ya existe.");
 
         _users.Add(new FakeUser(name, profile, limit, DateTimeOffset.UtcNow));
         return Task.CompletedTask;
@@ -53,6 +53,26 @@ public sealed class TickFakeConnection : IRouterTransport
 
         _profiles.Add(new HotspotProfile(name, rateLimit, ticketDuration, 1));
         return Task.CompletedTask;
+    }
+
+    public Task UpdateProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken)
+    {
+        var index = _profiles.FindIndex(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (index < 0)
+            throw new InvalidOperationException($"El perfil «{name}» ya no existe.");
+
+        _profiles[index] = _profiles[index] with { RateLimit = rateLimit, TicketDuration = ticketDuration };
+        return Task.CompletedTask;
+    }
+
+    public Task<int> RemoveProfileAsync(string name, CancellationToken cancellationToken)
+    {
+        var index = _profiles.FindIndex(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (index < 0)
+            return Task.FromResult(0);
+
+        _profiles.RemoveAt(index);
+        return Task.FromResult(1);
     }
 
     public Task<int> RemoveUsersAsync(IReadOnlyList<string> names, CancellationToken cancellationToken)

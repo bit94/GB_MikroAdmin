@@ -52,4 +52,32 @@ public sealed class ProfileMarkerTests
     [Fact]
     public void Read_throws_on_a_corrupt_value()
         => Assert.Throws<FormatException>(() => ProfileMarker.ReadTicketDuration("GBM:voucher-duration=abc"));
+
+    [Fact]
+    public void WithDuration_replaces_the_value_and_keeps_surrounding_notes()
+        => Assert.Equal(
+            "mostrador GBM:voucher-duration=2h promo mayo",
+            ProfileMarker.WithDuration("mostrador GBM:voucher-duration=1h promo mayo", TimeSpan.FromHours(2)));
+
+    [Fact]
+    public void WithDuration_adds_the_marker_to_a_comment_without_one()
+        => Assert.Equal(
+            "plan de mostrador GBM:voucher-duration=2h",
+            ProfileMarker.WithDuration("plan de mostrador", TimeSpan.FromHours(2)));
+
+    [Fact]
+    public void WithDuration_writes_only_the_marker_when_the_comment_is_empty()
+    {
+        Assert.Equal("GBM:voucher-duration=2h", ProfileMarker.WithDuration(null, TimeSpan.FromHours(2)));
+        Assert.Equal("GBM:voucher-duration=2h", ProfileMarker.WithDuration("   ", TimeSpan.FromHours(2)));
+    }
+
+    [Fact]
+    public void WithDuration_produces_a_comment_readable_by_Read()
+    {
+        var comment = ProfileMarker.WithDuration("nota GBM:voucher-duration=30m otra nota", TimeSpan.FromDays(30));
+
+        Assert.Equal(TimeSpan.FromDays(30), ProfileMarker.ReadTicketDuration(comment));
+        Assert.Equal("nota GBM:voucher-duration=4w2d otra nota", comment);
+    }
 }

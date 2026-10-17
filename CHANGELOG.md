@@ -4,6 +4,54 @@ Las fechas siguen el formato `AAAA-MM-DD`. Los cambios se agrupan por fase de tr
 
 ## [Sin publicar]
 
+### Añadido — edición y eliminación de perfiles (2026-10-17)
+
+- **Editar perfil desde cada fila.** Se pueden cambiar la velocidad y la duración del ticket sin
+  tocar el nombre: los tickets ya creados lo referencian. La nueva duración se aplica solo a
+  tickets futuros; los existentes conservan su `limit-uptime`.
+- **Eliminar perfil con confirmación.** Si hay tickets usándolo, el aviso indica cuántos dejarán
+  de aplicar su velocidad y su tiempo antes de borrar.
+- **Las notas del comentario se conservan.** `ProfileMarker.WithDuration` reescribe únicamente el
+  marcador de duración y mantiene el texto que el administrador haya escrito alrededor.
+- **Corregido el refresco tras crear un perfil.** El refresco se llamaba dentro de otro
+  `RunAsync`, que se niega a ejecutarse mientras la página está ocupada, así que el perfil nuevo
+  no aparecía hasta pulsar «Actualizar».
+
+### Corregido — remediación de la auditoría (2026-10-17)
+
+- **CI desbloqueada.** La prueba del QR vuelve a compilar y las páginas XAML usan bindings
+  tipados (`x:DataType`, `Source` compilado y plantillas anotadas). La reconstrucción limpia de
+  Windows con `-warnaserror` termina con 0 errores y 0 advertencias; Android también compila con
+  el mismo tratamiento.
+- **El histórico ya no se puede perder en silencio.** La escritura es atómica (temporal + volcado
+  a disco + reemplazo) y conserva un `.bak` del último estado válido. Un archivo ilegible ya no se
+  interpreta como «historial vacío»: se recupera del respaldo o se lanza un error sin tocar los
+  archivos. Al recuperar, el respaldo bueno ya no se sobrescribe con el principal dañado.
+- **TLS validado en el socket real.** Se eliminó el handshake de comprobación separado: la
+  política de certificado se enlaza directamente a la conexión API-SSL de tik4net que envía las
+  credenciales. Exige nombre (SAN/CN) coincidente, cadena de confianza y revocación en línea;
+  tik4net autentica con la revocación desactivada por defecto.
+- **Un fallo sistémico ya no se repite 100 veces.** Los códigos duplicados se reintentan hasta
+  cinco veces; una pérdida de conexión, credenciales rechazadas o falta de permisos detiene el
+  lote y conserva los tickets ya creados, indicando el motivo y cuántos quedaron sin intentar.
+- **El lote se valida y se congela antes de escribir en el router.** Cantidad, perfil, duración,
+  precio y datos de la tarjeta se comprueban antes del primer alta; la exportación y el histórico
+  usan una instantánea del lote, no el estado actual del formulario.
+- **La configuración de conexión se recupera.** Al volver a la pantalla de entrada se rellenan
+  host, puerto, usuario y contraseña desde SecureStorage. La pantalla de generación recuerda
+  cantidad, perfil, red Wi-Fi y precio.
+- **Borrados protegidos.** La lista de tickets permite seleccionar una fila, el botón de borrado
+  se deshabilita sin selección y las operaciones masivas (agotados e histórico) piden
+  confirmación.
+- **Cobertura ampliada:** 144 pruebas, incluidas recuperación del histórico, política de
+  certificados, reintentos por duplicado y aborto por fallos de conexión.
+
+### Cambiado — formulario de generación
+
+- La tarjeta se configura con **red Wi-Fi y precio**. La marca y la URL de consulta de estado
+  dejan de pedirse en pantalla; siguen existiendo en el modelo y se conservan para los lotes ya
+  guardados. El QR sigue respetando la URL de estado cuando un lote antiguo la incluye.
+
 ### Cambiado — de «vouchers» a «tickets»
 
 - **Renombre completo del vocabulario.** La aplicación, el código, las pruebas y la
@@ -68,8 +116,8 @@ Las fechas siguen el formato `AAAA-MM-DD`. Los cambios se agrupan por fase de tr
   el transporte de Core no vuelve a caer en llamadas síncronas disfrazadas de `Task.FromResult`.
 - `AsyncCommand<T>` expone `ExecutionFailed` como `AsyncCommand` y vive junto a él; el
   `async void` sin captura podía derribar el proceso.
-- Se retiran propiedades sin uso fuera de `UsersViewModel` y el comando de borrar perfil, que
-  no tenía implementación ni botón en la interfaz.
+- Se retiran propiedades sin uso fuera de `UsersViewModel`; el comando de borrar perfil se
+  retiró por no tener implementación y ahora vuelve junto con la edición completa.
 
 ### Añadido — Fase 2: entrega de los tickets
 

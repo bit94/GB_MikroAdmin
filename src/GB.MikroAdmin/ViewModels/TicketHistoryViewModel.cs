@@ -23,13 +23,13 @@ public sealed class TicketHistoryViewModel : PageViewModel
         _exporter = exporter;
 
         RefreshCommand = new AsyncCommand(RefreshAsync);
-        PrintBatchCommand = new AsyncCommand<BatchRow>(PrintAsync);
-        ThermalBatchCommand = new AsyncCommand<BatchRow>(PrintNextAsync);
-        ExportBatchCommand = new AsyncCommand<BatchRow>(ExportAsync);
-        DeleteBatchCommand = new AsyncCommand<BatchRow>(DeleteAsync);
+        PrintBatchCommand = new AsyncCommand<TicketBatchRow>(PrintAsync);
+        ThermalBatchCommand = new AsyncCommand<TicketBatchRow>(PrintNextAsync);
+        ExportBatchCommand = new AsyncCommand<TicketBatchRow>(ExportAsync);
+        DeleteBatchCommand = new AsyncCommand<TicketBatchRow>(DeleteAsync);
     }
 
-    public ObservableCollection<BatchRow> Batches { get; } = [];
+    public ObservableCollection<TicketBatchRow> Batches { get; } = [];
 
     public ICommand RefreshCommand { get; }
     public ICommand PrintBatchCommand { get; }
@@ -42,13 +42,13 @@ public sealed class TicketHistoryViewModel : PageViewModel
         var batches = await _history.GetAllAsync();
         Batches.Clear();
         foreach (var batch in batches)
-            Batches.Add(new BatchRow(batch));
+            Batches.Add(new TicketBatchRow(batch));
 
         if (batches.Count == 0)
             Info("Todavía no hay lotes guardados.");
     });
 
-    private Task PrintAsync(BatchRow? row) => RunAsync(async () =>
+    private Task PrintAsync(TicketBatchRow? row) => RunAsync(async () =>
     {
         if (row is null)
             return;
@@ -65,7 +65,7 @@ public sealed class TicketHistoryViewModel : PageViewModel
     });
 
     /// <summary>Imprime el siguiente ticket del lote sin imprimir, en formato térmico de 80 mm.</summary>
-    private Task PrintNextAsync(BatchRow? row) => RunAsync(async () =>
+    private Task PrintNextAsync(TicketBatchRow? row) => RunAsync(async () =>
     {
         if (row is null)
             return;
@@ -82,7 +82,7 @@ public sealed class TicketHistoryViewModel : PageViewModel
         Success($"Ticket {ticket.Name} enviado a la impresora térmica.");
     });
 
-    private async Task MarkPrintedAsync(BatchRow row, IReadOnlyCollection<string> codes)
+    private async Task MarkPrintedAsync(TicketBatchRow row, IReadOnlyCollection<string> codes)
     {
         await _history.MarkPrintedAsync(row.Batch, codes);
 
@@ -91,7 +91,7 @@ public sealed class TicketHistoryViewModel : PageViewModel
             Batches[index] = row with { Batch = row.Batch with { Printed = row.Batch.Printed.Union(codes).ToList() } };
     }
 
-    private Task ExportAsync(BatchRow? row) => RunAsync(async () =>
+    private Task ExportAsync(TicketBatchRow? row) => RunAsync(async () =>
     {
         if (row is null)
             return;
@@ -104,9 +104,17 @@ public sealed class TicketHistoryViewModel : PageViewModel
         Success($"Se exportaron {row.Batch.Tickets.Count} tickets.");
     });
 
-    private Task DeleteAsync(BatchRow? row) => RunAsync(async () =>
+    private Task DeleteAsync(TicketBatchRow? row) => RunAsync(async () =>
     {
         if (row is null)
+            return;
+
+        var confirmed = await Shell.Current.DisplayAlertAsync(
+            "Quitar del histórico",
+            $"Se quitará el lote de {row.Batch.Tickets.Count} tickets. " +
+            "Los usuarios seguirán creados en el router.",
+            "Quitar", "Cancelar");
+        if (!confirmed)
             return;
 
         await _history.RemoveAsync(row.Batch);
@@ -114,22 +122,23 @@ public sealed class TicketHistoryViewModel : PageViewModel
         Success("Lote quitado del histórico. Los usuarios siguen creados en el router.");
     });
 
-    /// <summary>Fila del histórico: el lote y sus códigos ya formateados para leer o copiar.</summary>
-    public sealed record BatchRow(TicketBatchExport Batch)
-    {
-        public string Title =>
-            $"{Batch.CreatedAt:dd/MM/yyyy HH:mm} · {Batch.Tickets.Count} tickets · " +
-            $"{Batch.Profile} · {Batch.DurationText}";
+}
 
-        /// <summary>Seguimiento de impresión: «Impresos 3/10». Los lotes anteriores a este
-        /// seguimiento empiezan en cero aunque se hubieran impreso.</summary>
-        public string PrintedSummary => $"Impresos {Batch.Printed.Count}/{Batch.Tickets.Count}";
+/// <summary>Fila del histórico: el lote y sus códigos ya formateados para leer o copiar.</summary>
+public sealed record TicketBatchRow(TicketBatchExport Batch)
+{
+    public string Title =>
+        $"{Batch.CreatedAt:dd/MM/yyyy HH:mm} · {Batch.Tickets.Count} tickets · " +
+        $"{Batch.Profile} · {Batch.DurationText}";
 
-        /// <summary>Primer ticket del lote que aún no se ha enviado a imprimir.</summary>
-        public CreatedHotspotUser? NextUnprinted =>
-            Batch.Tickets.FirstOrDefault(t => !Batch.Printed.Contains(t.Name));
+    /// <summary>Seguimiento de impresión: «Impresos 3/10». Los lotes anteriores a este
+    /// seguimiento empiezan en cero aunque se hubieran impreso.</summary>
+    public string PrintedSummary => $"Impresos {Batch.Printed.Count}/{Batch.Tickets.Count}";
 
-        /// <summary>Códigos separados por espacios, para poder copiarlos de una vez.</summary>
-        public string Codes => string.Join("   ", Batch.Tickets.Select(v => v.Name));
-    }
+    /// <summary>Primer ticket del lote que aún no se ha enviado a imprimir.</summary>
+    public CreatedHotspotUser? NextUnprinted =>
+        Batch.Tickets.FirstOrDefault(t => !Batch.Printed.Contains(t.Name));
+
+    /// <summary>Códigos separados por espacios, para poder copiarlos de una vez.</summary>
+    public string Codes => string.Join("   ", Batch.Tickets.Select(v => v.Name));
 }

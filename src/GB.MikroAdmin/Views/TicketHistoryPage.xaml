@@ -2,7 +2,9 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:GB.MikroAdmin.Views"
+             xmlns:vm="clr-namespace:GB.MikroAdmin.ViewModels"
              x:Class="GB.MikroAdmin.Views.TicketHistoryPage"
+             x:DataType="vm:TicketHistoryViewModel"
              Title="Histórico">
 
   <ContentPage.Resources>
@@ -19,7 +21,7 @@
 
     <VerticalStackLayout Grid.Row="1" Margin="12,0" BindableLayout.ItemsSource="{Binding Notices}">
       <BindableLayout.ItemTemplate>
-        <DataTemplate>
+        <DataTemplate x:DataType="vm:Notice">
           <Label Text="{Binding Text}" FontSize="13"
                  TextColor="{Binding Severity, Converter={StaticResource NoticeColor}}" />
         </DataTemplate>
@@ -31,7 +33,7 @@
         <Label Text="Todavía no hay lotes guardados." Style="{StaticResource Caption}" Margin="0,30" HorizontalOptions="Center" />
       </CollectionView.EmptyView>
       <CollectionView.ItemTemplate>
-        <DataTemplate>
+        <DataTemplate x:DataType="vm:TicketBatchRow">
           <Border Style="{StaticResource Card}" Margin="0,0,0,6">
             <VerticalStackLayout Spacing="6">
               <Grid ColumnDefinitions="*,Auto">
@@ -42,16 +44,16 @@
               <Label Text="{Binding Codes}" Style="{StaticResource Mono}" FontSize="13" />
               <Grid ColumnDefinitions="*,*,*,Auto" ColumnSpacing="8">
                 <Button Text="CSV" Padding="8,4" FontSize="13"
-                        Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.ExportBatchCommand}"
+                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:TicketHistoryViewModel}}, Path=ExportBatchCommand, x:DataType=vm:TicketHistoryViewModel}"
                         CommandParameter="{Binding .}" />
                 <Button Grid.Column="1" Text="Reimprimir" Padding="8,4" FontSize="13"
-                        Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.PrintBatchCommand}"
+                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:TicketHistoryViewModel}}, Path=PrintBatchCommand, x:DataType=vm:TicketHistoryViewModel}"
                         CommandParameter="{Binding .}" />
                 <Button Grid.Column="2" Text="Térmico" Padding="8,4" FontSize="13"
-                        Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.ThermalBatchCommand}"
+                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:TicketHistoryViewModel}}, Path=ThermalBatchCommand, x:DataType=vm:TicketHistoryViewModel}"
                         CommandParameter="{Binding .}" />
                 <Button Grid.Column="3" Text="Quitar" Padding="8,4" FontSize="13" Style="{StaticResource DangerButton}"
-                        Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeleteBatchCommand}"
+                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:TicketHistoryViewModel}}, Path=DeleteBatchCommand, x:DataType=vm:TicketHistoryViewModel}"
                         CommandParameter="{Binding .}" />
               </Grid>
             </VerticalStackLayout>

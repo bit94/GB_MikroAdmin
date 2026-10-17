@@ -1,3 +1,5 @@
+using System.Net.Sockets;
+using System.Security.Authentication;
 using GB.MikroAdmin.Core.Models;
 using GB.MikroAdmin.Core.Services;
 using tik4net;
@@ -13,22 +15,35 @@ public sealed class Tik4NetSessionFactory : ITikSessionFactory
 {
     public async Task<ITikSession> OpenAsync(RouterSettings settings, CancellationToken cancellationToken)
     {
-        // tik4net expone una API mayormente síncrona; se aparta del hilo de UI para no bloquearlo.
-        return await Task.Run(() =>
+        var setup = new TikConnectionSetup(
+            TikRouterAddress.FromHost(settings.Host),
+            settings.UserName,
+            settings.Password)
         {
-            var connection = ConnectionFactory.CreateConnection(TikConnectionType.ApiSsl);
-            try
-            {
-                connection.Open(settings.Host, settings.Port, settings.UserName, settings.Password);
-            }
-            catch
-            {
-                connection.Close();
-                throw;
-            }
+            Port = settings.Port,
+            AllowInvalidCertificate = false,
+            // tik4net autentica con checkCertificateRevocation desactivado. El callback toma el
+            // control del mismo socket que envía las credenciales y exige nombre, cadena y
+            // revocación en línea; reemplaza al handshake de comprobación separado.
+            CertificateValidationCallback = (_, certificate, _, errors) =>
+                RouterCertificatePolicy.Validate(settings.Host, certificate, errors)
+        };
 
-            return (ITikSession)new Tik4NetSession(connection);
-        }, cancellationToken);
+        ITikConnection connection;
+        try
+        {
+            connection = await setup.CreateAsync(TikConnectionType.ApiSsl, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is AuthenticationException or TikConnectionSSLErrorException)
+        {
+            // tik4net reduce el rechazo a «API-SSL error»; el detalle de la política se pierde.
+            throw new AuthenticationException(
+                $"No se pudo validar la conexión TLS con «{settings.Host}:{settings.Port}». " +
+                "Comprueba que api-ssl use un certificado de confianza, vigente y con el nombre del host en su SAN.",
+                exception);
+        }
+
+        return new Tik4NetSession(connection);
     }
 
     private sealed class Tik4NetSession(ITikConnection connection) : ITikSession
@@ -65,7 +80,43 @@ public sealed class Tik4NetSessionFactory : ITikSessionFactory
                 await Task.Run(() =>
                 {
                     var arguments = parameters.SelectMany(pair => new[] { pair.Key, pair.Value }).ToArray();
-                    connection.CreateCommandAndParameters(command, arguments).ExecuteNonQuery();
+                    try
+                    {
+                        connection.CreateCommandAndParameters(command, arguments).ExecuteNonQuery();
+                    }
+                    catch (TikAlreadyHaveSuchItemException exception)
+                    {
+                        throw new RouterWriteException(
+                            RouterWriteFailureKind.Duplicate, "El código ya existe en el router.", exception);
+                    }
+                    catch (TikCommandTrapException exception) when (IsPermissionTrap(exception))
+                    {
+                        throw new RouterWriteException(
+                            RouterWriteFailureKind.Permission,
+                            "El usuario del router no tiene permisos para crear tickets.", exception);
+                    }
+                    catch (TikConnectionLoginException exception)
+                    {
+                        throw new RouterWriteException(
+                            RouterWriteFailureKind.Authentication, "El router rechazó las credenciales.", exception);
+                    }
+                    catch (TikCommandTrapException exception)
+                    {
+                        var detail = string.IsNullOrWhiteSpace(exception.CodeDescription)
+                            ? exception.Message
+                            : exception.CodeDescription;
+                        throw new RouterWriteException(
+                            RouterWriteFailureKind.Router,
+                            string.IsNullOrWhiteSpace(detail)
+                                ? "El router rechazó la operación."
+                                : $"El router rechazó la operación: {detail}",
+                            exception);
+                    }
+                    catch (Exception exception) when (IsConnectionFailure(exception))
+                    {
+                        throw new RouterWriteException(
+                            RouterWriteFailureKind.Connection, "Se perdió la conexión con el router.", exception);
+                    }
                 }, cancellationToken);
             }
             finally
@@ -80,6 +131,24 @@ public sealed class Tik4NetSessionFactory : ITikSessionFactory
             connection.Dispose();
             return ValueTask.CompletedTask;
         }
+
+        private static bool IsPermissionTrap(TikCommandTrapException exception)
+        {
+            var text = $"{exception.CodeDescription} {exception.Message}";
+            return text.Contains("not permitted", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("missing policy", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("permission", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsConnectionFailure(Exception exception)
+            => exception is TikConnectionException
+                or TikConnectionNotOpenException
+                or TikConnectionReceiveTimeoutException
+                or TikConnectionResponseIncompleteException
+                or TikCommandFatalException
+                or IOException
+                or SocketException
+                or ObjectDisposedException;
     }
 
     private sealed class Tik4NetRow(ITikReSentence sentence) : ITikRow

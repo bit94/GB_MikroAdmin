@@ -1,5 +1,6 @@
 using System.Globalization;
 using GB.MikroAdmin.Core.Models;
+using GB.MikroAdmin.Core.Services;
 
 namespace GB.MikroAdmin.Views;
 
@@ -67,6 +68,26 @@ public sealed class RemainingTextConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
+/// <summary>Resumen legible de un perfil: velocidad, duración y tickets que lo usan.</summary>
+public sealed class ProfileSummaryConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is not HotspotProfile profile)
+            return string.Empty;
+
+        var rate = string.IsNullOrWhiteSpace(profile.RateLimit) ? "Sin límite" : profile.RateLimit;
+        var duration = profile.TicketDuration is { } ticketDuration
+            ? TicketBatchExport.Humanize(ticketDuration)
+            : "Sin duración";
+        var usage = profile.SharedUsers == 1 ? "1 ticket" : $"{profile.SharedUsers} tickets";
+        return $"{rate} · {duration} · {usage}";
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
 /// <summary>Invierte un booleano, para habilitar un botón mientras otro estado está activo.</summary>
 public sealed class InvertBoolConverter : IValueConverter
 {
@@ -95,7 +116,7 @@ public sealed class NoticeColorConverter : IValueConverter
             {
                 ViewModels.NoticeSeverity.Success => Color.FromArgb("#22C55E"),
                 ViewModels.NoticeSeverity.Warning => Color.FromArgb("#F59E0B"),
-                ViewModels.NoticeSeverity.Error => Color.FromArgb("#EF4444"),
+                ViewModels.NoticeSeverity.Error => Color.FromArgb("#F87171"),
                 _ => Color.FromArgb("#94A3B8")
             }
             : Color.FromArgb("#94A3B8");

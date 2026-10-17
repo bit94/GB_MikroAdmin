@@ -12,24 +12,32 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder.UseMauiApp<App>();
 
+#if WINDOWS
+        // En Windows, MAUI dibuja Picker.Title como encabezado interno del ComboBox y duplica la
+        // etiqueta del formulario. Se mueve al placeholder, como ocurre en Android.
+        Microsoft.Maui.Handlers.PickerHandler.Mapper.AppendToMapping("TitleAsPlaceholder", (handler, view) =>
+        {
+            handler.PlatformView.Header = null;
+            handler.PlatformView.PlaceholderText = view.Title;
+        });
+#endif
+
         // --- Infraestructura ---------------------------------------------------------------
         builder.Services.AddSingleton<IRouterSettingsStore, RouterSettingsStore>();
         builder.Services.AddSingleton<ITikSessionFactory, Tik4NetSessionFactory>();
 
-        // El transporte real se construye con la validación de certificado delante, de modo que
-        // ninguna conexión llega a tik4net sin haber pasado la comprobación de la cadena y el SAN.
+        // El modo real conecta con API-SSL y la fábrica enlaza la validación de certificado al
+        // socket que autentica; no hay un handshake de comprobación separado.
         builder.Services.AddSingleton<IRouterTransportFactory>(_ => new RouterTransportFactory(simulated =>
             simulated
                 ? new TickFakeConnection()
-                : new Tik4NetRouterTransport(
-                    _.GetRequiredService<ITikSessionFactory>(),
-                    (settings, ct) => RouterCertificateValidator.ValidateAsync(settings.Host, settings.Port, ct))));
+                : new Tik4NetRouterTransport(_.GetRequiredService<ITikSessionFactory>())));
 
         builder.Services.AddSingleton<IRouterService, RouterService>();
         builder.Services.AddSingleton<IRouterUserWriter>(sp => (RouterService)sp.GetRequiredService<IRouterService>());
         builder.Services.AddSingleton<ITicketCodeGenerator, NumericTicketCodeGenerator>();
         builder.Services.AddSingleton<IHotspotProvisioningService, HotspotProvisioningService>();
-        builder.Services.AddSingleton<ITicketHistoryStore, TicketHistoryStore>();
+        builder.Services.AddSingleton<ITicketHistoryStore>(_ => new TicketHistoryStore(FileSystem.AppDataDirectory));
         builder.Services.AddSingleton<IFileExporter, MauiFileExporter>();
 
         // --- Estado compartido -------------------------------------------------------------

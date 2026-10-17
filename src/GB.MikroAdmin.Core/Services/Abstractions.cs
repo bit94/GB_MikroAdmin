@@ -26,6 +26,8 @@ public interface IRouterTransport : IAsyncDisposable
     Task<IReadOnlyList<HotspotProfile>> ProfilesAsync(CancellationToken cancellationToken);
     Task AddUserAsync(string name, string password, string profile, TimeSpan limit, CancellationToken cancellationToken);
     Task AddProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken);
+    Task UpdateProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken);
+    Task<int> RemoveProfileAsync(string name, CancellationToken cancellationToken);
     Task<int> RemoveUsersAsync(IReadOnlyList<string> names, CancellationToken cancellationToken);
 }
 
