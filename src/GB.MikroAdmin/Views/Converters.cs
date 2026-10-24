@@ -6,7 +6,7 @@ namespace GB.MikroAdmin.Views;
 
 /// <summary>
 /// Traduce el estado del ticket a texto y color. Se centraliza aquí para que la semántica
-/// (verde disponible, ámbar en uso, rojo agotado) sea idéntica en todas las listas.
+/// (verde disponible, azul en línea, ámbar pausado, rojo agotado) sea idéntica en todas las listas.
 /// </summary>
 public sealed class TicketStateTextConverter : IValueConverter
 {
@@ -15,7 +15,8 @@ public sealed class TicketStateTextConverter : IValueConverter
             ? state switch
             {
                 TicketState.Available => "Sin usar",
-                TicketState.InUse => "En uso",
+                TicketState.Online => "En línea",
+                TicketState.Paused => "Pausado",
                 TicketState.Expired => "Agotado",
                 _ => "Sin límite"
             }
@@ -33,7 +34,8 @@ public sealed class TicketStateColorConverter : IValueConverter
             ? state switch
             {
                 TicketState.Available => Color.FromArgb("#22C55E"),
-                TicketState.InUse => Color.FromArgb("#F59E0B"),
+                TicketState.Online => Color.FromArgb("#38BDF8"),
+                TicketState.Paused => Color.FromArgb("#F59E0B"),
                 TicketState.Expired => Color.FromArgb("#EF4444"),
                 _ => Color.FromArgb("#64748B")
             }

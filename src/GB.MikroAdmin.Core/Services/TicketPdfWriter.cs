@@ -161,7 +161,7 @@ public static class TicketPdfWriter
         return height + Padding;
     }
 
-    /// <summary>La tarjeta concentra lo que el cliente necesita: red, clave, QR, precio y duración.</summary>
+    /// <summary>La tarjeta concentra lo que el cliente necesita: red, código, QR, precio y duración.</summary>
     private static bool HasTitle(TicketBatchExport batch) =>
         !string.IsNullOrWhiteSpace(batch.Ssid) || !string.IsNullOrWhiteSpace(batch.Brand);
 

@@ -33,15 +33,18 @@ public sealed class HotspotUserTests
     }
 
     [Theory]
-    [InlineData(null, 0, TicketState.Unlimited)]
-    [InlineData(60, 0, TicketState.Available)]
-    [InlineData(60, 30, TicketState.InUse)]
-    [InlineData(60, 60, TicketState.Expired)]
-    [InlineData(60, 90, TicketState.Expired)]
-    public void State_reflects_consumption(int? limitMinutes, int uptimeMinutes, TicketState expected)
+    [InlineData(null, 0, false, TicketState.Unlimited)]
+    [InlineData(60, 0, false, TicketState.Available)]
+    [InlineData(60, 0, true, TicketState.Online)]
+    [InlineData(60, 30, true, TicketState.Online)]
+    [InlineData(60, 30, false, TicketState.Paused)]
+    [InlineData(60, 60, true, TicketState.Expired)]
+    [InlineData(60, 90, true, TicketState.Expired)]
+    public void State_reflects_consumption_and_session(
+        int? limitMinutes, int uptimeMinutes, bool isOnline, TicketState expected)
     {
         TimeSpan? limit = limitMinutes is null ? null : TimeSpan.FromMinutes(limitMinutes.Value);
-        var user = new HotspotUser("a", "p", limit, TimeSpan.FromMinutes(uptimeMinutes), true);
+        var user = new HotspotUser("a", "p", limit, TimeSpan.FromMinutes(uptimeMinutes), isOnline);
 
         Assert.Equal(expected, user.State);
     }

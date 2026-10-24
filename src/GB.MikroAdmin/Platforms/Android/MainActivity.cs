@@ -1,6 +1,8 @@
 using Android.App;
+using Android.Content;
 using Android.Content.PM;
 using Android.OS;
+using GB.MikroAdmin.Services;
 
 namespace GB.MikroAdmin;
 
@@ -18,4 +20,25 @@ namespace GB.MikroAdmin;
                            ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
 public class MainActivity : MauiAppCompatActivity
 {
+    protected override void OnCreate(Bundle? savedInstanceState)
+    {
+        base.OnCreate(savedInstanceState);
+        OpenTicketsIfRequested(Intent);
+    }
+
+    protected override void OnNewIntent(Intent? intent)
+    {
+        base.OnNewIntent(intent);
+        OpenTicketsIfRequested(intent);
+    }
+
+    /// <summary>La notificación de vencimiento trae la orden de abrir Tickets al tocarla.</summary>
+    private static void OpenTicketsIfRequested(Intent? intent)
+    {
+        if (intent?.GetStringExtra(NotificationNavigation.ExtraOpen) != NotificationNavigation.OpenTickets)
+            return;
+
+        intent.RemoveExtra(NotificationNavigation.ExtraOpen);
+        NotificationNavigation.OpenTicketsFromNotification();
+    }
 }

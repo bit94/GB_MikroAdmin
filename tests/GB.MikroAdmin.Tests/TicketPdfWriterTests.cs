@@ -300,6 +300,24 @@ public sealed class TicketPdfWriterTests
         Assert.Equal(expected, batch.QrPayloadFor(new CreatedHotspotUser(code, code)));
     }
 
+    /// <summary>
+    /// El hotspot usa red abierta y el código se teclea en el portal: el QR solo debe unir a la
+    /// red, sin contraseña. Codificar el código como PSK (WPA) haría fallar la conexión.
+    /// </summary>
+    [Theory]
+    [InlineData("GB_nextGen_PA01", "WIFI:T:nopass;S:GB_nextGen_PA01;;")]
+    [InlineData("Cafe;Bar", "WIFI:T:nopass;S:Cafe\\;Bar;;")]
+    [InlineData("Red:Centro,Uno", "WIFI:T:nopass;S:Red\\:Centro\\,Uno;;")]
+    public void Qr_payload_joins_the_open_network_when_ssid_is_set(string ssid, string expected)
+    {
+        var batch = new TicketBatchExport(
+            DateTimeOffset.Now, "limitado", TimeSpan.FromHours(1),
+            [new CreatedHotspotUser("1249904", "1249904")],
+            Ssid: ssid, StatusUrl: "https://gbnextgen.mx/estado/{codigo}");
+
+        Assert.Equal(expected, batch.QrPayloadFor(new CreatedHotspotUser("1249904", "1249904")));
+    }
+
     private static TicketBatchExport TicketBatchExportWith(string code) => new(
         DateTimeOffset.Now, "limitado", TimeSpan.FromHours(1),
         [new CreatedHotspotUser(code, code)]);

@@ -35,3 +35,21 @@ public interface IRouterTransportFactory
 {
     IRouterTransport Create(bool simulated);
 }
+
+/// <summary>
+/// Lectura mínima de tickets para vigilar vencimientos. Se separa de <see cref="IRouterService"/>
+/// para que el vigilante no dependa de las operaciones de escritura ni de la UI.
+/// </summary>
+public interface ITicketSource
+{
+    bool IsConnected { get; }
+    Task<IReadOnlyList<HotspotUser>> GetUsersAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>Aviso al administrador cuando un ticket agota su tiempo.</summary>
+public interface ITicketNotifier
+{
+    Task EnsurePermissionAsync();
+    Task NotifyExpiredAsync(IReadOnlyList<HotspotUser> tickets);
+    Task ClearExpiredAsync();
+}

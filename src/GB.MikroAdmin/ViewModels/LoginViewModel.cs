@@ -10,6 +10,7 @@ public sealed class LoginViewModel : ObservableObject
     private readonly IRouterSettingsStore _settings;
     private readonly IRouterService _router;
     private readonly ConnectionState _connection;
+    private readonly TicketExpiryMonitor _monitor;
 
     private string _host = "192.168.88.1";
     private string _port = "8729";
@@ -20,11 +21,16 @@ public sealed class LoginViewModel : ObservableObject
     private bool _useTls = true;
     private bool _isConnecting;
 
-    public LoginViewModel(IRouterSettingsStore settings, IRouterService router, ConnectionState connection)
+    public LoginViewModel(
+        IRouterSettingsStore settings,
+        IRouterService router,
+        ConnectionState connection,
+        TicketExpiryMonitor monitor)
     {
         _settings = settings;
         _router = router;
         _connection = connection;
+        _monitor = monitor;
         ConnectCommand = new AsyncCommand(ConnectAsync);
     }
 
@@ -122,6 +128,7 @@ public sealed class LoginViewModel : ObservableObject
 
             await _router.ConnectAsync();
             _connection.Refresh();
+            _monitor.Start();
 
             Password = string.Empty;
             await Shell.Current.GoToAsync(Routes.Home);

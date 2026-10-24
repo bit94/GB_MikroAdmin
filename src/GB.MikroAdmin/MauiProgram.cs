@@ -46,11 +46,21 @@ public static class MauiProgram
                 : new Tik4NetRouterTransport(_.GetRequiredService<ITikSessionFactory>())));
 
         builder.Services.AddSingleton<IRouterService, RouterService>();
+        builder.Services.AddSingleton<ITicketSource>(sp => sp.GetRequiredService<IRouterService>());
         builder.Services.AddSingleton<IRouterUserWriter>(sp => (RouterService)sp.GetRequiredService<IRouterService>());
         builder.Services.AddSingleton<ITicketCodeGenerator, NumericTicketCodeGenerator>();
         builder.Services.AddSingleton<IHotspotProvisioningService, HotspotProvisioningService>();
         builder.Services.AddSingleton<ITicketHistoryStore>(_ => new TicketHistoryStore(FileSystem.AppDataDirectory));
         builder.Services.AddSingleton<IFileExporter, MauiFileExporter>();
+
+        // La vigilancia consulta el router mientras la sesión siga activa. Sin un servidor no hay
+        // push real: el aviso nace en el dispositivo que tiene la conexión.
+        builder.Services.AddSingleton<ITicketNotifier, TicketNotifier>();
+        builder.Services.AddSingleton(sp => new TicketExpiryMonitor(
+            sp.GetRequiredService<ITicketSource>(),
+            sp.GetRequiredService<ITicketNotifier>(),
+            new TicketExpiryTracker(),
+            TimeSpan.FromSeconds(30)));
 
         // --- Estado compartido -------------------------------------------------------------
         builder.Services.AddSingleton<ConnectionState>();

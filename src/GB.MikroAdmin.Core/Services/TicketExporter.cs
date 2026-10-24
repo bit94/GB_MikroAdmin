@@ -93,15 +93,16 @@ public sealed record TicketBatchExport(
     public string DurationText => Humanize(Duration);
 
     /// <summary>
-    /// Qué se codifica en el QR de un ticket. Con red Wi-Fi, el payload de conexión automática
-    /// <c>WIFI:T:WPA;S:…;P:…;;</c>, que los móviles interpretan como «conectarse a esta red»;
-    /// sin red, la URL de estado con el código incrustado si se configuró; en su defecto, el
-    /// propio código, que al ser a la vez usuario y contraseña basta para entrar.
+    /// Qué se codifica en el QR de un ticket. Con red Wi-Fi, el payload de red abierta
+    /// <c>WIFI:T:nopass;S:…;;</c>, que los móviles interpretan como «conectarse a esta red»;
+    /// el código del ticket se teclea después en el portal del hotspot. Sin red, la URL de
+    /// estado con el código incrustado si se configuró; en su defecto, el propio código, que
+    /// al ser a la vez usuario y contraseña basta para entrar.
     /// </summary>
     public string QrPayloadFor(CreatedHotspotUser ticket)
     {
         if (Ssid?.Trim() is { Length: > 0 } ssid)
-            return $"WIFI:T:WPA;S:{WifiEscape(ssid)};P:{WifiEscape(ticket.Password)};;";
+            return $"WIFI:T:nopass;S:{WifiEscape(ssid)};;";
 
         if (StatusUrl?.Trim() is { Length: > 0 } url)
             return ComposeStatusUrl(url, ticket.Name);

@@ -6,10 +6,16 @@ namespace GB.MikroAdmin.Core.Services;
 /// Conecta bajo demanda y delega en el transporte activo. Los métodos de escritura se exponen
 /// de forma explícita para que la UI no dependa de la interfaz completa del transporte.
 /// </summary>
+/// <remarks>
+/// Todas las operaciones pasan por un semáforo: una sesión de RouterOS atiende un comando a la
+/// vez y la vigilancia de vencimientos consulta el router en paralelo con la pantalla de Tickets.
+/// Sin esta serialización, dos listados simultáneos podían mezclar respuestas de la API.
+/// </remarks>
 public sealed class RouterService : IRouterService, IRouterUserWriter
 {
     private readonly IRouterSettingsStore _store;
     private readonly IRouterTransportFactory _factory;
+    private readonly SemaphoreSlim _gate = new(1, 1);
     private IRouterTransport? _transport;
 
     public RouterService(IRouterSettingsStore store, IRouterTransportFactory factory)
@@ -24,52 +30,148 @@ public sealed class RouterService : IRouterService, IRouterUserWriter
 
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
     {
-        var settings = await _store.GetAsync()
-            ?? throw new InvalidOperationException("Configura el router antes de conectar.");
-
-        await DisposeTransportAsync();
-        _transport = _factory.Create(settings.Simulated);
+        await _gate.WaitAsync(cancellationToken);
         try
         {
-            await _transport.ConnectAsync(settings, cancellationToken);
-        }
-        catch
-        {
-            await DisposeTransportAsync();
-            throw;
-        }
+            var settings = await _store.GetAsync()
+                ?? throw new InvalidOperationException("Configura el router antes de conectar.");
 
-        ConnectedHost = $"{settings.Host}:{settings.Port}{(settings.Simulated ? " (simulado)" : string.Empty)}";
+            await DisposeTransportAsync();
+            _transport = _factory.Create(settings.Simulated);
+            try
+            {
+                await _transport.ConnectAsync(settings, cancellationToken);
+            }
+            catch
+            {
+                await DisposeTransportAsync();
+                throw;
+            }
+
+            ConnectedHost = $"{settings.Host}:{settings.Port}{(settings.Simulated ? " (simulado)" : string.Empty)}";
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
-    public Task<IReadOnlyList<RouterInterface>> GetInterfacesAsync(CancellationToken cancellationToken = default)
-        => Connected().InterfacesAsync(cancellationToken);
+    public async Task<IReadOnlyList<RouterInterface>> GetInterfacesAsync(CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            return await Connected().InterfacesAsync(cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
 
-    public Task<IReadOnlyList<HotspotUser>> GetUsersAsync(CancellationToken cancellationToken = default)
-        => Connected().UsersAsync(cancellationToken);
+    public async Task<IReadOnlyList<HotspotUser>> GetUsersAsync(CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            return await Connected().UsersAsync(cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
 
-    public Task<IReadOnlyList<HotspotProfile>> GetProfilesAsync(CancellationToken cancellationToken = default)
-        => Connected().ProfilesAsync(cancellationToken);
+    public async Task<IReadOnlyList<HotspotProfile>> GetProfilesAsync(CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            return await Connected().ProfilesAsync(cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
 
-    public Task AddUserAsync(string name, string password, string profile, TimeSpan limit, CancellationToken cancellationToken = default)
-        => Connected().AddUserAsync(name, password, profile, limit, cancellationToken);
+    public async Task AddUserAsync(string name, string password, string profile, TimeSpan limit, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            await Connected().AddUserAsync(name, password, profile, limit, cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
 
-    public Task AddProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken = default)
-        => Connected().AddProfileAsync(name, rateLimit, ticketDuration, cancellationToken);
+    public async Task AddProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            await Connected().AddProfileAsync(name, rateLimit, ticketDuration, cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
 
-    public Task UpdateProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken = default)
-        => Connected().UpdateProfileAsync(name, rateLimit, ticketDuration, cancellationToken);
+    public async Task UpdateProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            await Connected().UpdateProfileAsync(name, rateLimit, ticketDuration, cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
 
-    public Task<int> RemoveProfileAsync(string name, CancellationToken cancellationToken = default)
-        => Connected().RemoveProfileAsync(name, cancellationToken);
+    public async Task<int> RemoveProfileAsync(string name, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            return await Connected().RemoveProfileAsync(name, cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
 
-    public Task<int> RemoveUsersAsync(IReadOnlyList<string> names, CancellationToken cancellationToken = default)
-        => Connected().RemoveUsersAsync(names, cancellationToken);
+    public async Task<int> RemoveUsersAsync(IReadOnlyList<string> names, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            return await Connected().RemoveUsersAsync(names, cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
 
     public async Task DisconnectAsync()
     {
-        await DisposeTransportAsync();
-        ConnectedHost = null;
+        await _gate.WaitAsync();
+        try
+        {
+            await DisposeTransportAsync();
+            ConnectedHost = null;
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     private IRouterTransport Connected()
@@ -83,16 +185,14 @@ public sealed class RouterService : IRouterService, IRouterUserWriter
         _transport = null;
     }
 
-    public async ValueTask DisposeAsync() => await DisposeTransportAsync();
+    public async ValueTask DisposeAsync() => await DisconnectAsync();
 }
 
-public interface IRouterService : IAsyncDisposable
+public interface IRouterService : ITicketSource, IAsyncDisposable
 {
-    bool IsConnected { get; }
     string? ConnectedHost { get; }
     Task ConnectAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RouterInterface>> GetInterfacesAsync(CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<HotspotUser>> GetUsersAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<HotspotProfile>> GetProfilesAsync(CancellationToken cancellationToken = default);
     Task AddUserAsync(string name, string password, string profile, TimeSpan limit, CancellationToken cancellationToken = default);
     Task AddProfileAsync(string name, string rateLimit, TimeSpan ticketDuration, CancellationToken cancellationToken = default);

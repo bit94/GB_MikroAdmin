@@ -91,7 +91,10 @@ public sealed class TickFakeConnection : IRouterTransport
             var uptime = now - CreatedAt;
             if (uptime < TimeSpan.Zero)
                 uptime = TimeSpan.Zero;
-            return new HotspotUser(Name, Profile, Limit, uptime, uptime > TimeSpan.Zero);
+
+            // El simulador no tiene desconexiones: un ticket consumido sigue en línea hasta agotarse.
+            var online = uptime > TimeSpan.Zero && (Limit <= TimeSpan.Zero || uptime < Limit);
+            return new HotspotUser(Name, Profile, Limit, uptime, online);
         }
     }
 }

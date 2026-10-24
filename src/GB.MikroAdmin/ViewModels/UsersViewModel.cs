@@ -588,7 +588,8 @@ public sealed class UsersViewModel : PageViewModel
     /// <summary>Resumen en una línea, para leer el estado del router de un vistazo.</summary>
     public string Summary => Users.Count == 0
         ? "Sin tickets en el router."
-        : $"{Users.Count} tickets · {Users.Count(u => u.State is TicketState.InUse)} en uso · " +
+        : $"{Users.Count} tickets · {Users.Count(u => u.State is TicketState.Online)} en línea · " +
+          $"{Users.Count(u => u.State is TicketState.Paused)} pausados · " +
           $"{Users.Count(u => u.State is TicketState.Available)} sin usar · " +
           $"{Users.Count(u => u.State is TicketState.Expired)} agotados";
 }

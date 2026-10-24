@@ -44,18 +44,30 @@ public sealed class Tik4NetRouterTransport : IRouterTransport
 
     public async Task<IReadOnlyList<HotspotUser>> UsersAsync(CancellationToken cancellationToken)
     {
-        var rows = await Connected().ListAsync("/ip/hotspot/user/print", cancellationToken);
+        var session = Connected();
+        var rows = await session.ListAsync("/ip/hotspot/user/print", cancellationToken);
+        if (rows.Count == 0)
+            return [];
+
+        // El consumo vive en el usuario, pero "en línea" solo se sabe por las sesiones activas.
+        var active = await session.ListAsync("/ip/hotspot/active/print", cancellationToken);
+        var online = active
+            .Select(r => r.GetStringOrNull("user"))
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         return rows.Select(r =>
         {
             // Un limit-uptime ilegible lanza; es preferible a mostrar un ticket como ilimitado.
             var limit = RouterOsTime.Parse(r.GetString("limit-uptime"));
             var uptime = RouterOsTime.Parse(r.GetString("uptime")) ?? TimeSpan.Zero;
+            var name = r.GetString("name");
             return new HotspotUser(
-                r.GetString("name"),
+                name,
                 r.GetStringOrNull("profile") ?? "default",
                 limit,
                 uptime,
-                uptime > TimeSpan.Zero);
+                online.Contains(name));
         }).ToList();
     }
 

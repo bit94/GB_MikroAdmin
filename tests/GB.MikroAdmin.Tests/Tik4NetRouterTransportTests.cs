@@ -168,7 +168,7 @@ public sealed class Tik4NetRouterTransportTests
     }
 
     [Fact]
-    public async Task Users_reads_limit_and_uptime_from_routeros_notation()
+    public async Task Users_reads_limit_uptime_and_active_session()
     {
         var session = new FakeSession
         {
@@ -177,6 +177,10 @@ public sealed class Tik4NetRouterTransportTests
                 ["/ip/hotspot/user/print"] =
                 [
                     Row(("name", "123456"), ("profile", "limitado"), ("limit-uptime", "1h"), ("uptime", "30m"))
+                ],
+                ["/ip/hotspot/active/print"] =
+                [
+                    Row(("user", "123456"), ("address", "192.168.88.50"))
                 ]
             }
         };
@@ -186,7 +190,34 @@ public sealed class Tik4NetRouterTransportTests
 
         Assert.Equal(TimeSpan.FromHours(1), user.LimitUptime);
         Assert.Equal(TimeSpan.FromMinutes(30), user.Uptime);
-        Assert.Equal(TicketState.InUse, user.State);
+        Assert.True(user.IsOnline);
+        Assert.Equal(TicketState.Online, user.State);
+    }
+
+    [Fact]
+    public async Task Users_without_an_active_session_are_paused()
+    {
+        var session = new FakeSession
+        {
+            Rows =
+            {
+                ["/ip/hotspot/user/print"] =
+                [
+                    Row(("name", "123456"), ("profile", "limitado"), ("limit-uptime", "1h"), ("uptime", "30m"))
+                ],
+                // Una sesión de otro código no debe marcar en línea a este ticket.
+                ["/ip/hotspot/active/print"] =
+                [
+                    Row(("user", "999999"), ("address", "192.168.88.51"))
+                ]
+            }
+        };
+
+        await using var transport = await ConnectAsync(session);
+        var user = Assert.Single(await transport.UsersAsync(CancellationToken.None));
+
+        Assert.False(user.IsOnline);
+        Assert.Equal(TicketState.Paused, user.State);
     }
 
     [Fact]
