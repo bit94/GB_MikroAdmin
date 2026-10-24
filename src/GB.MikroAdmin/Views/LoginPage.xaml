@@ -36,6 +36,16 @@
       <Label Text="{Binding Message}" TextColor="{StaticResource StateExpired}" />
       <Label Text="Las credenciales se guardan solo en SecureStorage. El modo real exige api-ssl en el router, un certificado de confianza en el puerto 8729, y rechaza certificados autofirmados, vencidos o con un SAN que no coincida con el host."
              Style="{StaticResource Caption}" />
+
+      <Border Style="{StaticResource Card}" BackgroundColor="{StaticResource SurfaceAlt}" Margin="0,6,0,0">
+        <VerticalStackLayout Spacing="8">
+          <Label Text="¿Vas a configurar todo desde cero?" Style="{StaticResource CardTitle}" />
+          <Label Text="Sigue la guía de instalación: Starlink, MikroTik, access points, hotspot, certificado, tickets y cliente final."
+                 Style="{StaticResource Caption}" />
+          <Button Text="Abrir guía de instalación" Style="{StaticResource SecondaryButton}"
+                  Command="{Binding OpenGuideCommand}" />
+        </VerticalStackLayout>
+      </Border>
     </VerticalStackLayout>
   </ScrollView>
 </ContentPage>

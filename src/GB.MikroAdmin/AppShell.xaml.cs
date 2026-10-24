@@ -10,6 +10,10 @@ public partial class AppShell : Shell
     {
         InitializeComponent();
         _services = services;
+
+        // La guía se abre como página empujada desde el login o desde Inicio, así que no forma
+        // parte de las pestañas que construye BuildMenu.
+        Routing.RegisterRoute(Routes.Guide, typeof(GuidePage));
     }
 
     /// <summary>

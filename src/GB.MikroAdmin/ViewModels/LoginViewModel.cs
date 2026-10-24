@@ -32,6 +32,7 @@ public sealed class LoginViewModel : ObservableObject
         _connection = connection;
         _monitor = monitor;
         ConnectCommand = new AsyncCommand(ConnectAsync);
+        OpenGuideCommand = new AsyncCommand(() => Shell.Current.GoToAsync(Routes.Guide));
     }
 
     public string Host { get => _host; set => Set(ref _host, value); }
@@ -75,6 +76,7 @@ public sealed class LoginViewModel : ObservableObject
     }
 
     public ICommand ConnectCommand { get; }
+    public ICommand OpenGuideCommand { get; }
 
     public async Task RestoreAsync()
     {

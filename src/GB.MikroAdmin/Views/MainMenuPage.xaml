@@ -28,6 +28,20 @@
       <Label Text="Configuración del router" Style="{StaticResource SectionTitle}" />
       <Button Text="Perfiles y ancho de banda" Command="{Binding GoToProfilesCommand}" HeightRequest="58" />
       <Button Text="Interfaces" Command="{Binding GoToInterfacesCommand}" HeightRequest="58" />
+
+      <Label Text="Ayuda" Style="{StaticResource SectionTitle}" />
+      <Border Style="{StaticResource Card}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <VerticalStackLayout Spacing="1" VerticalOptions="Center">
+            <Label Text="Guía de instalación" Style="{StaticResource CardTitle}" />
+            <Label Text="Starlink, router, access points, hotspot, certificado, tickets y cliente final."
+                   Style="{StaticResource Caption}" />
+          </VerticalStackLayout>
+          <Button Grid.Column="1" Text="Abrir" Style="{StaticResource SecondaryButton}"
+                  HeightRequest="38" MinimumWidthRequest="84" Padding="14,0" FontSize="13"
+                  Command="{Binding GoToGuideCommand}" VerticalOptions="Center" />
+        </Grid>
+      </Border>
     </VerticalStackLayout>
   </ScrollView>
 </ContentPage>

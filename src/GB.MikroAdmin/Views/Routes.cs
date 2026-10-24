@@ -20,6 +20,12 @@ public static class Routes
     public const string Generate = "//generate";
     public const string Profiles = "//profiles";
     public const string History = "//history";
+
+    /// <summary>
+    /// La guía se empuja sobre la pantalla actual, no vive en la barra de pestañas: también
+    /// tiene que abrirse desde el login, antes de que exista una conexión.
+    /// </summary>
+    public const string Guide = "guide";
 }
 
 /// <summary>

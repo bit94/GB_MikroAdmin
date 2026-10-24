@@ -76,6 +76,12 @@ public static class MauiProgram
         builder.Services.AddSingleton<InterfacesViewModel>();
         builder.Services.AddSingleton<TicketHistoryViewModel>();
 
+        // La guía conserva qué capítulos están abiertos entre visitas, así que su ViewModel es
+        // único. La página sí es transitoria: se empuja desde el login y desde Inicio, y una
+        // misma instancia no puede estar en dos pilas de navegación a la vez.
+        builder.Services.AddSingleton<GuideViewModel>();
+        builder.Services.AddTransient<GuidePage>();
+
         // --- Páginas -----------------------------------------------------------------------
         // Se registran a partir de ShellMenu, la misma lista que usa AppShell para construir el
         // menú. Antes había dos listas paralelas y añadir una sección sin registrar su página no

@@ -11,6 +11,7 @@ public sealed class MainMenuViewModel(ConnectionState connection, TicketExpiryMo
     public ICommand GoToGenerateCommand { get; } = new AsyncCommand(() => Shell.Current.GoToAsync(Routes.Generate));
     public ICommand GoToProfilesCommand { get; } = new AsyncCommand(() => Shell.Current.GoToAsync(Routes.Profiles));
     public ICommand GoToHistoryCommand { get; } = new AsyncCommand(() => Shell.Current.GoToAsync(Routes.History));
+    public ICommand GoToGuideCommand { get; } = new AsyncCommand(() => Shell.Current.GoToAsync(Routes.Guide));
 
     public ICommand DisconnectCommand { get; } = new AsyncCommand(async () =>
     {
